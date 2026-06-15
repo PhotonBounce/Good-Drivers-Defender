@@ -1,0 +1,6 @@
+{
+  "name": "Good Drivers' Defender",
+  "description": "A high-performance dual-camera dashcam and GPSTrip recorder with HUD dashboard, speedometers, timestamp stamps, and offline storage optimizations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
