@@ -1,7 +1,30 @@
+################################################################
+# Good Drivers Defender — .gitignore
+################################################################
+
+# ── Gradle / build output ──────────────────────────────────
+.gradle/
+.kotlin/
+/build
+build/
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# ── Bundled toolchains (DO NOT commit — install via system) ─
+# Use a system JDK 17 (set JAVA_HOME) and the Gradle wrapper instead.
+/jdk11
+/jdk17
+/.build_tools
+
+# ── Local config & IDE ─────────────────────────────────────
+local.properties
 *.iml
-.gradle
-.kotlin
-/local.properties
+.idea/
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -9,10 +32,27 @@
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+
+# ── Secrets / signing (NEVER commit) ───────────────────────
 .env
+key.properties
+keystore.rsp
+*.jks
+*.keystore
 debug.keystore
+**/google-play-service-account.json
+google-services.json
+
+# ── Runtime data / databases ───────────────────────────────
+driver_recorder_db
+driver_recorder_db-shm
+driver_recorder_db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# ── JVM crash dumps & UI-Automator / QA scratch artifacts ──
+hs_err_pid*.log
+replay_pid*.log
+window_dump*.xml
+dashboard.xml

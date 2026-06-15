@@ -6,7 +6,12 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!--
+      ACCESS_BACKGROUND_LOCATION removed: recording runs in a FOREGROUND service
+      (FOREGROUND_SERVICE_LOCATION), so background-location access is not required.
+      Declaring it triggers a heavy Google Play review (in-app justification + demo video).
+      Only re-add it if you genuinely need location while NO foreground service is running.
+    -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
