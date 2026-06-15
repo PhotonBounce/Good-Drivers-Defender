@@ -236,9 +236,143 @@ def render_dashboard_protools():
     save(img, "04_dashboard_protools.png")
 
 
+def poly(d, pts, color, width):
+    d.line(pts, fill=hx(color), width=width, joint="curve")
+
+
+# ─────────────────────────── 5. PARKING SENTRY ───────────────────────────
+def render_parking_sentry():
+    img, d = new_screen("#050B16")
+    y = SB + 30
+    T(d, (40, y+18), "‹", "bold", 44, "#FFFFFF", "lm")
+    T(d, (78, y+18), "PARKING SENTRY", "bold", 34, "#FFFFFF", "lm")
+
+    green = "#22C55E"
+    cx, cy, R = W//2, y + 260, 200
+    for i in (1, 2, 3):
+        r = R*i/3
+        d.ellipse([cx-r, cy-r, cx+r, cy+r], outline=hx("#4022C55E"), width=2)
+    d.line([(cx-R, cy), (cx+R, cy)], fill=hx("#2622C55E"), width=2)
+    d.line([(cx, cy-R), (cx, cy+R)], fill=hx("#2622C55E"), width=2)
+    d.pieslice([cx-R, cy-R, cx+R, cy+R], 300, 355, fill=hx("#4D22C55E"))
+    # shield glyph (polygon)
+    sh = [(cx-30, cy-58), (cx+30, cy-58), (cx+30, cy-20), (cx, cy+4), (cx-30, cy-20)]
+    d.polygon(sh, fill=hx(green))
+    T(d, (cx, cy-34), "✓", "bold", 30, "#050B16", "mm")
+    T(d, (cx, cy+34), "SENTRY ARMED", "bold", 30, green, "mm")
+    T(d, (cx, cy+66), "Monitoring for impacts", "reg", 20, "#94A3B8", "mm")
+
+    sy = cy + R + 36
+    T(d, (40, sy), "IMPACT SENSITIVITY", "bold", 20, "#94A3B8", "lm")
+    cy2 = sy + 30
+    cw = (W-80-2*12)//3
+    for i, lev in enumerate(["LOW", "MEDIUM", "HIGH"]):
+        bx = 40 + i*(cw+12)
+        sel = lev == "MEDIUM"
+        rrect(d, [bx, cy2, bx+cw, cy2+70], 12, fill="#1D4ED8" if sel else "#1E293B",
+              outline="#60A5FA" if sel else None, width=2)
+        T(d, (bx+cw/2, cy2+35), lev, "bold", 22, "#FFFFFF" if sel else "#94A3B8", "mm")
+
+    by = cy2 + 100
+    rrect(d, [40, by, W-40, by+86], 14, fill="#991B1B")
+    T(d, (W//2, by+43), "DISARM SENTRY", "bold", 26, "#FFFFFF", "mm")
+
+    ly = by + 120
+    T(d, (40, ly), "DETECTED IMPACTS (2)", "bold", 20, "#94A3B8", "lm")
+    events = [("Jun 15 • 2:14 PM", "1.84"), ("Jun 13 • 9:42 AM", "1.51")]
+    ey = ly + 30
+    for t, g in events:
+        rrect(d, [40, ey, W-40, ey+72], 12, fill="#1E293B")
+        T(d, (64, ey+36), t, "reg", 24, "#FFFFFF", "lm")
+        T(d, (W-64, ey+36), f"{g} G", "monob", 26, "#F97316", "rm")
+        ey += 84
+    save(img, "05_parking_sentry.png")
+
+
+# ─────────────────────────── 6. LIVE TELEMETRY GRAPH ───────────────────────────
+def render_telemetry_graph():
+    img, d = new_screen("#0F172A")
+    y = SB + 30
+    T(d, (40, y+18), "‹", "bold", 44, "#FFFFFF", "lm")
+    T(d, (78, y+18), "LIVE TELEMETRY", "bold", 34, "#FFFFFF", "lm")
+    T(d, (80, y+56), "Real-time speed & G-force trace", "reg", 22, "#94A3B8", "lm")
+
+    cyan, orange = "#38BDF8", "#F97316"
+    ly = y + 96
+    d.ellipse([40, ly, 60, ly+20], fill=hx(cyan)); T(d, (72, ly+10), "SPEED (mph)", "bold", 21, "#CBD5E1", "lm")
+    d.ellipse([320, ly, 340, ly+20], fill=hx(orange)); T(d, (352, ly+10), "G-FORCE", "bold", 21, "#CBD5E1", "lm")
+
+    # chart
+    gx0, gy0, gx1, gy1 = 40, ly+50, W-40, ly+50+440
+    rrect(d, [gx0, gy0, gx1, gy1], 16, fill="#020617")
+    px0, py0, px1, py1 = gx0+24, gy0+24, gx1-24, gy1-24
+    for i in range(5):
+        gyy = py0 + (py1-py0)*i/4
+        d.line([(px0, gyy), (px1, gyy)], fill=hx("#1E293B"), width=2)
+    n = 34
+    spd = [38 + 26*math.sin(i/3.0) + (8 if i > 22 else 0) for i in range(n)]
+    gf = [1.1 + 1.2*abs(math.sin(i/2.3 + 1)) for i in range(n)]
+    smax, gmax = 80.0, 3.0
+    sp_pts = [(px0 + (px1-px0)*i/(n-1), py1 - (spd[i]/smax)*(py1-py0)) for i in range(n)]
+    gf_pts = [(px0 + (px1-px0)*i/(n-1), py1 - (gf[i]/gmax)*(py1-py0)) for i in range(n)]
+    poly(d, gf_pts, orange, 6)
+    poly(d, sp_pts, cyan, 7)
+
+    sy = gy1 + 28
+    stats = [("NOW", "58", "mph", cyan), ("MAX", "71", "mph", "#EF4444"),
+             ("AVG", "44", "mph", "#22C55E"), ("PEAK G", "2.3", "G", orange)]
+    sw = (W-80-3*12)//4
+    for i, (lab, val, unit, tint) in enumerate(stats):
+        bx = 40 + i*(sw+12)
+        rrect(d, [bx, sy, bx+sw, sy+150], 12, fill="#1E293B")
+        T(d, (bx+16, sy+28), lab, "bold", 17, "#64748B", "lm")
+        T(d, (bx+16, sy+78), val, "monob", 40, tint, "lm")
+        T(d, (bx+16, sy+120), unit, "reg", 18, "#94A3B8", "lm")
+    save(img, "06_telemetry_graph.png")
+
+
+# ─────────────────────────── 7. TRIP HISTORY ───────────────────────────
+def render_trip_history():
+    img, d = new_screen("#0F172A")
+    y = SB + 24
+    T(d, (40, y+16), "‹", "bold", 44, "#FFFFFF", "lm")
+    T(d, (78, y+16), "TRIP HISTORY", "bold", 32, "#FFFFFF", "lm")
+    T(d, (80, y+54), "3 drive session(s) logged", "reg", 21, "#94A3B8", "lm")
+
+    indigo = "#818CF8"
+    sessions = [
+        ("Sun, Jun 15 • 8:42 AM", "3", "71 mph", "2.41", [28,40,55,52,68,71,49,38]),
+        ("Sat, Jun 14 • 6:10 PM", "2", "54 mph", "1.72", [22,35,48,54,44,30]),
+        ("Thu, Jun 12 • 5:03 PM", "1", "44 mph", "0.95", [18,30,44,40,26,33,20]),
+    ]
+    yy = y + 100
+    cardx0, cardx1 = 40, W-40
+    for date, ev, top, pg, speeds in sessions:
+        ch = 290
+        rrect(d, [cardx0, yy, cardx1, yy+ch], 16, fill="#1E293B")
+        T(d, (cardx0+24, yy+34), date, "bold", 24, "#FFFFFF", "lm")
+        # sparkline
+        spx0, spy0, spx1, spy1 = cardx0+24, yy+70, cardx1-24, yy+170
+        mv = max(speeds)
+        pts = [(spx0 + (spx1-spx0)*i/(len(speeds)-1), spy1 - speeds[i]/mv*(spy1-spy0)) for i in range(len(speeds))]
+        poly(d, pts, indigo, 5)
+        # stats
+        labels = [("EVENTS", ev), ("TOP SPEED", top), ("PEAK G", pg)]
+        third = (cardx1-cardx0)/3
+        for i, (lab, val) in enumerate(labels):
+            cxx = cardx0 + third*i + third/2
+            T(d, (cxx, yy+218), val, "monob", 28, "#FFFFFF", "mm")
+            T(d, (cxx, yy+252), lab, "bold", 16, "#64748B", "mm")
+        yy += ch + 22
+    save(img, "07_trip_history.png")
+
+
 if __name__ == "__main__":
     render_drive_score()
     render_sos(armed=True)
     render_timeline()
     render_dashboard_protools()
+    render_parking_sentry()
+    render_telemetry_graph()
+    render_trip_history()
     print("done ->", os.path.abspath(OUT))

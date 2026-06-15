@@ -648,6 +648,54 @@ fun DashboardScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // ── PRO TOOLS row 2 (Parking Sentry / Live Telemetry / Trip History) ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.navigateTo("sentry") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFF818CF8).copy(alpha = 0.5f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Shield, contentDescription = "Parking Sentry", tint = Color(0xFF818CF8), modifier = Modifier.size(18.dp))
+                            Text("SENTRY", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                    Button(
+                        onClick = { viewModel.navigateTo("telemetry") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.ShowChart, contentDescription = "Live Telemetry", tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                            Text("GRAPH", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                    Button(
+                        onClick = { viewModel.navigateTo("trips") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFA78BFA).copy(alpha = 0.5f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Route, contentDescription = "Trip History", tint = Color(0xFFA78BFA), modifier = Modifier.size(18.dp))
+                            Text("TRIPS", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // ── ROW 2: Core Action Controls ──
