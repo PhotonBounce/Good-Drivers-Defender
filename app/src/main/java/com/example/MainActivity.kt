@@ -32,6 +32,9 @@ import com.example.ui.ReportGeneratorScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.SplashScreen
 import com.example.ui.VideoGalleryScreen
+import com.example.ui.TripScoreScreen
+import com.example.ui.EmergencySosScreen
+import com.example.ui.EvidenceTimelineScreen
 import com.example.viewmodel.RecorderViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -246,6 +249,15 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
             }
             "videos" -> {
                 VideoGalleryScreen(viewModel = viewModel)
+            }
+            "drive_score" -> {
+                TripScoreScreen(viewModel = viewModel)
+            }
+            "sos" -> {
+                EmergencySosScreen(viewModel = viewModel)
+            }
+            "timeline" -> {
+                EvidenceTimelineScreen(viewModel = viewModel)
             }
             else -> {
                 DashboardScreen(viewModel = viewModel)

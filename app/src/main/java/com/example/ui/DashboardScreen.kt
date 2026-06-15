@@ -602,6 +602,54 @@ fun DashboardScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // ── PRO TOOLS quick-launch (Drive Score / Emergency SOS / Evidence Timeline) ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.navigateTo("drive_score") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFF22C55E).copy(alpha = 0.5f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.EmojiEvents, contentDescription = "Drive Score", tint = Color(0xFF22C55E), modifier = Modifier.size(18.dp))
+                            Text("SCORE", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                    Button(
+                        onClick = { viewModel.navigateTo("sos") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.6f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Sos, contentDescription = "Emergency SOS", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                            Text("SOS", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                    Button(
+                        onClick = { viewModel.navigateTo("timeline") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Timeline, contentDescription = "Evidence Timeline", tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+                            Text("TIMELINE", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 // ── ROW 2: Core Action Controls ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
