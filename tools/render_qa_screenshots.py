@@ -367,6 +367,137 @@ def render_trip_history():
     save(img, "07_trip_history.png")
 
 
+def arc_gauge(d, cx, cy, R, frac, accent, track="#1E293B", stroke=40):
+    box = [cx-R, cy-R, cx+R, cy+R]
+    d.arc(box, 135, 45, fill=hx(track), width=stroke)
+    end = 135 + 270*frac
+    d.arc(box, 135, end, fill=hx(accent), width=stroke)
+    for ang in (135, end):
+        rad = math.radians(ang)
+        ex, ey = cx + R*math.cos(rad), cy + R*math.sin(rad)
+        r = stroke/2
+        d.ellipse([ex-r, ey-r, ex+r, ey+r], fill=hx(accent))
+
+
+# ─────────────────────────── 8. COLLISION DETECTION (alert) ───────────────────────────
+def render_collision():
+    img, d = new_screen("#1A0606")
+    y = SB + 30
+    rrect(d, [40, y, W-40, y+90], 14, fill="#DC2626")
+    T(d, (W//2, y+45), "⚠  COLLISION DETECTED", "bold", 36, "#FFFFFF", "mm")
+
+    cx, cy, R = W//2, y+330, 165
+    arc_gauge(d, cx, cy, R, 0.70, "#EF4444", stroke=38)
+    T(d, (cx, cy-16), "4.2", "monob", 110, "#EF4444", "mm")
+    T(d, (cx, cy+60), "G-FORCE", "bold", 22, "#94A3B8", "mm")
+
+    sy = cy + R + 60
+    T(d, (W//2, sy), "Auto-alerting in", "reg", 26, "#FCA5A5", "mm")
+    T(d, (W//2, sy+80), "9", "monob", 130, "#FFFFFF", "mm")
+    T(d, (W//2, sy+165), "seconds", "reg", 24, "#FCA5A5", "mm")
+
+    by = sy + 230
+    rrect(d, [40, by, W-40, by+110], 16, fill="#16A34A")
+    T(d, (W//2, by+55), "✓  I'M OK — CANCEL", "bold", 32, "#FFFFFF", "mm")
+    rrect(d, [40, by+128, W-40, by+238], 16, fill="#B91C1C")
+    T(d, (W//2, by+183), "✚  SEND HELP NOW", "bold", 32, "#FFFFFF", "mm")
+    save(img, "08_collision_detect.png")
+
+
+# ─────────────────────────── 9. AR HUD ───────────────────────────
+def render_hud():
+    img = Image.new("RGB", (W, H), (0, 0, 0))
+    d = ImageDraw.Draw(img, "RGBA")
+    # sky / ground
+    d.rectangle([0, 0, W, H//2], fill=hx("#0A1733"))
+    d.rectangle([0, H//2, W, H], fill=hx("#071A12"))
+    cyan = "#22D3EE"
+    cyc = H//2
+    off = int((W/2) * math.tan(math.radians(7)))
+    d.line([(0, cyc-off), (W, cyc+off)], fill=hx(cyan), width=5)
+    for p in (-2, -1, 1, 2):
+        yy = cyc + p*90
+        d.line([(int(W*0.34), yy), (int(W*0.66), yy)], fill=hx("#6622D3EE"), width=3)
+    # reticle
+    d.line([(W//2-110, cyc), (W//2-40, cyc)], fill=hx("#4ADE80"), width=6)
+    d.line([(W//2+40, cyc), (W//2+110, cyc)], fill=hx("#4ADE80"), width=6)
+    d.ellipse([W//2-9, cyc-9, W//2+9, cyc+9], fill=hx("#4ADE80"))
+    # status bar
+    d.rectangle([0, 0, W, SB], fill=(0, 0, 0, 120))
+    T(d, (28, SB/2), "9:41", "bold", 26, "#FFFFFF", "lm")
+    T(d, (W-28, SB/2), "5G  ▮▮▮▮  84%", "reg", 22, (255,255,255,210), "rm")
+    # header
+    T(d, (40, SB+44), "‹  AR HUD", "bold", 30, "#FFFFFF", "lm")
+    rrect(d, [W-230, SB+24, W-40, SB+78], 8, fill="#1E293B")
+    T(d, (W-135, SB+51), "⟷ MIRROR", "bold", 22, cyan, "mm")
+    # speed
+    T(d, (W//2, cyc-40), "64", "monob", 210, cyan, "mm")
+    T(d, (W//2, cyc+120), "MPH", "bold", 40, cyan, "mm")
+    # bottom strip
+    by = H - 150
+    for i, (lab, val, col) in enumerate([("TIME", "08:42:13", "#FFFFFF"),
+                                          ("G-FORCE", "1.34", cyan),
+                                          ("POSITION", "47.6205, -122.3493", "#94A3B8")]):
+        bx = 40 + i*((W-80)//3)
+        T(d, (bx, by), lab, "bold", 18, "#64748B", "lm")
+        T(d, (bx, by+34), val, "monob", 24, col, "lm")
+    save(img, "09_ar_hud.png")
+
+
+# ─────────────────────────── 10. ACHIEVEMENTS ───────────────────────────
+def render_achievements():
+    img, d = new_screen("#0F172A")
+    y = SB + 24
+    T(d, (40, y+16), "‹", "bold", 44, "#FFFFFF", "lm")
+    T(d, (78, y+16), "ACHIEVEMENTS", "bold", 32, "#FFFFFF", "lm")
+
+    # level card
+    ly = y + 70
+    rrect(d, [40, ly, W-40, ly+170], 18, fill="#1E293B", outline="#66FBBF24", width=2)
+    d.ellipse([72, ly+28, 168, ly+124], fill=hx("#422006"))
+    T(d, (120, ly+76), "3", "monob", 52, "#FBBF24", "mm")
+    T(d, (190, ly+58), "DRIVER LEVEL 3", "bold", 28, "#FFFFFF", "lm")
+    T(d, (190, ly+96), "4 / 6 badges • 850 XP", "reg", 22, "#94A3B8", "lm")
+    # xp bar
+    bx0, bx1 = 72, W-72
+    rrect(d, [bx0, ly+138, bx1, ly+156], 9, fill="#0F172A")
+    rrect(d, [bx0, ly+138, bx0 + int((bx1-bx0)*0.7), ly+156], 9, fill="#FBBF24")
+
+    T(d, (40, ly+200), "BADGES", "bold", 20, "#94A3B8", "lm")
+
+    badges = [
+        ("First Evidence", "Log your first incident", "#22C55E", True, 1.0, "✓"),
+        ("Collector", "Log 10 incidents", "#FBBF24", False, 0.4, "★"),
+        ("Smooth Operator", "0 hard brakes", "#38BDF8", True, 1.0, "⛨"),
+        ("Sentinel", "Auto-capture 5 events", "#F97316", False, 0.6, "⚡"),
+        ("Night Guardian", "Night-time incident", "#818CF8", True, 1.0, "☾"),
+        ("Speed Aware", "Record 60+ mph", "#EF4444", False, 0.73, "◎"),
+    ]
+    gx0 = 40
+    gw = (W-80-12)//2
+    gh = 250
+    gy0 = ly + 230
+    for i, (name, desc, col, on, prog, gly) in enumerate(badges):
+        cxx = gx0 + (i % 2)*(gw+12)
+        cyy = gy0 + (i//2)*(gh+12)
+        rrect(d, [cxx, cyy, cxx+gw, cyy+gh], 16, fill="#1E293B",
+              outline=col+"99" if on else "#22FFFFFF", width=2)
+        # icon circle
+        icx, icy = cxx+gw//2, cyy+58
+        ic_bg = col+"2E" if on else "#33000000"
+        d.ellipse([icx-38, icy-38, icx+38, icy+38], fill=hx(ic_bg))
+        T(d, (icx, icy), gly if on else "🔒", "bold", 38, col if on else "#475569", "mm")
+        T(d, (icx, cyy+128), name, "bold", 21, "#FFFFFF" if on else "#94A3B8", "mm")
+        T(d, (icx, cyy+158), desc, "reg", 16, "#64748B", "mm")
+        if on:
+            T(d, (icx, cyy+200), "✓ UNLOCKED", "bold", 19, col, "mm")
+        else:
+            pbx0, pbx1 = cxx+24, cxx+gw-24
+            rrect(d, [pbx0, cyy+196, pbx1, cyy+210], 7, fill="#0F172A")
+            rrect(d, [pbx0, cyy+196, pbx0+int((pbx1-pbx0)*prog), cyy+210], 7, fill=col)
+    save(img, "10_achievements.png")
+
+
 if __name__ == "__main__":
     render_drive_score()
     render_sos(armed=True)
@@ -375,4 +506,7 @@ if __name__ == "__main__":
     render_parking_sentry()
     render_telemetry_graph()
     render_trip_history()
+    render_collision()
+    render_hud()
+    render_achievements()
     print("done ->", os.path.abspath(OUT))

@@ -20,7 +20,14 @@ capture wasn't possible here.
 | `06_telemetry_graph.png` | **Live Telemetry** (`TelemetryGraphScreen.kt`) | Real-time dual-line chart of speed + G-force with NOW/MAX/AVG/PEAK stats. |
 | `07_trip_history.png` | **Trip History** (`TripHistoryScreen.kt`) | Past drive sessions grouped from incidents, each with a speed sparkline + stats. |
 
-All 7 are reachable from two "PRO TOOLS" rows on the dashboard (SCORE / SOS / TIMELINE and SENTRY / GRAPH / TRIPS).
+## Round 4 — "mad innovations"
+| File | Screen | What's new |
+|------|--------|-----------|
+| `08_collision_detect.png` | **Collision Detection** (`CollisionDetectScreen.kt`) | Auto-arms on high-G impact → full-screen crash alert with countdown-to-auto-alert and I'M OK / SEND HELP. |
+| `09_ar_hud.png` | **AR Heads-Up Display** (`HudProjectionScreen.kt`) | Windshield-projection HUD: tilting artificial horizon, giant speed, G-meter, MIRROR flip. |
+| `10_achievements.png` | **Safety Achievements** (`AchievementsScreen.kt`) | Gamified driver level + XP bar and a 6-badge grid earned from the driving record. |
+
+All 10 are reachable from three "PRO TOOLS" rows on the dashboard (SCORE/SOS/TIMELINE, SENTRY/GRAPH/TRIPS, IMPACT/AR HUD/BADGES).
 
 ## Get REAL device captures on your machine
 These are faithful design renders, not live captures. To generate real screenshots:

@@ -696,6 +696,54 @@ fun DashboardScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // ── PRO TOOLS row 3 (Collision Guard / AR HUD / Achievements) ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { viewModel.navigateTo("impact") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Warning, contentDescription = "Collision Guard", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                            Text("IMPACT", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                    Button(
+                        onClick = { viewModel.navigateTo("hud") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFF22D3EE).copy(alpha = 0.5f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Dashboard, contentDescription = "AR HUD", tint = Color(0xFF22D3EE), modifier = Modifier.size(18.dp))
+                            Text("AR HUD", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                    Button(
+                        onClick = { viewModel.navigateTo("badges") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFBBF24).copy(alpha = 0.5f)),
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.EmojiEvents, contentDescription = "Achievements", tint = Color(0xFFFBBF24), modifier = Modifier.size(18.dp))
+                            Text("BADGES", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // ── ROW 2: Core Action Controls ──

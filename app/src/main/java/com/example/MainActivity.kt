@@ -38,6 +38,9 @@ import com.example.ui.EvidenceTimelineScreen
 import com.example.ui.ParkingSentryScreen
 import com.example.ui.TelemetryGraphScreen
 import com.example.ui.TripHistoryScreen
+import com.example.ui.CollisionDetectScreen
+import com.example.ui.HudProjectionScreen
+import com.example.ui.AchievementsScreen
 import com.example.viewmodel.RecorderViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -270,6 +273,15 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
             }
             "trips" -> {
                 TripHistoryScreen(viewModel = viewModel)
+            }
+            "impact" -> {
+                CollisionDetectScreen(viewModel = viewModel)
+            }
+            "hud" -> {
+                HudProjectionScreen(viewModel = viewModel)
+            }
+            "badges" -> {
+                AchievementsScreen(viewModel = viewModel)
             }
             else -> {
                 DashboardScreen(viewModel = viewModel)
