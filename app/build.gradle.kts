@@ -30,8 +30,8 @@ android {
     applicationId = "com.aistudio.driverrecorder.gpxrt"
     minSdk = 24
     targetSdk = 35          // Play Store requires targetSdk 35+ as of Aug 2025
-    versionCode = 3
-    versionName = "1.2"
+    versionCode = 4
+    versionName = "2.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

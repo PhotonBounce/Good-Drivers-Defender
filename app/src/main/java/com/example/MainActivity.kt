@@ -109,14 +109,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: ComponentActivity) {
     // Collect permissions needed for comprehensive driving telemetries
-    val diagnosticPermissionsState = rememberMultiplePermissionsState(
-        permissions = listOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CAMERA
-        )
+    val basePerms = listOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.CAMERA
     )
+    val allPerms = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
+        basePerms + Manifest.permission.POST_NOTIFICATIONS else basePerms
+    val diagnosticPermissionsState = rememberMultiplePermissionsState(permissions = allPerms)
 
     var showOnboardingInfo by remember { mutableStateOf(!diagnosticPermissionsState.allPermissionsGranted) }
 
@@ -171,7 +172,7 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                             )
 
                             Text(
-                                text = "DRIVER RECORDERS & EVIDENCE ACTIVE",
+                                text = "GOOD DRIVERS DEFENDER",
                                 color = Color.White,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 16.sp,
@@ -179,7 +180,7 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                             )
 
                             Text(
-                                text = "This dedicated driver safety app tracks vehicle telemetry metrics relative to the current highway zone and logs sudden deceleration events to compile solid evidence packets for civil recovery claims or police reporting.",
+                                text = "This app records camera, microphone, and GPS to build timestamped evidence packets for road-safety incidents. All data stays on your device unless you choose to share it.",
                                 color = Color.LightGray,
                                 fontSize = 11.sp,
                                 textAlign = TextAlign.Center,
@@ -193,21 +194,26 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalAlignment = Alignment.Start
                             ) {
-                                Text("💡 CRITICAL STEPS FOR PROOF CHAIN:", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("PERMISSIONS REQUIRED:", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("GPS & WiFi Geo tracker logs speeds and counties", color = Color.White, fontSize = 10.sp)
+                                    Text("Location — logs GPS coordinates and speed at each incident", color = Color.White, fontSize = 10.sp)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Accelerometer registers evasive hard braking force", color = Color.White, fontSize = 10.sp)
+                                    Text("Camera — captures timestamped photo and video evidence", color = Color.White, fontSize = 10.sp)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Custom overlay timestamps are printed for chain of custody", color = Color.White, fontSize = 10.sp)
+                                    Text("Microphone — records ambient audio witness during sessions", color = Color.White, fontSize = 10.sp)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Notifications — shows an indicator while background recording is active", color = Color.White, fontSize = 10.sp)
                                 }
                             }
 
@@ -219,7 +225,7 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                             ) {
-                                Text("Engage Telemetries & Drive Sensors")
+                                Text("Grant Permissions & Start")
                             }
                         }
                     }
