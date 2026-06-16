@@ -50,12 +50,6 @@ android {
       keyPassword = (keyProperties["keyPassword"] as? String)
         ?: System.getenv("KEY_PASSWORD")
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
   }
 
   buildTypes {
@@ -63,10 +57,14 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      // Only assign signing config when a keystore is actually available (CI or local)
+      val hasKeystore = keyPropertiesFile.exists() || System.getenv("STORE_PASSWORD") != null
+      if (hasKeystore) {
+        signingConfig = signingConfigs.getByName("release")
+      }
     }
     debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
+      // Use AGP's auto-managed debug signing key — no external keystore required
     }
   }
   compileOptions {
