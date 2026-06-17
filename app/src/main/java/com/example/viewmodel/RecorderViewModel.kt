@@ -46,6 +46,8 @@ import android.media.MediaRecorder
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
+import com.aistudio.driverrecorder.gpxrt.BuildConfig
 
 class RecorderViewModel(application: Application) : AndroidViewModel(application), SensorEventListener {
 
@@ -56,6 +58,13 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
 
     fun setBillingManager(manager: BillingManager) {
         billingManager = manager
+        // Mirror the real Google Play subscription state into our exposed state so that
+        // every isPro / subscriptionState consumer reflects actual, acknowledged purchases.
+        viewModelScope.launch {
+            manager.subscriptionState.collect { state ->
+                _subscriptionState.value = state
+            }
+        }
     }
 
     fun getBillingManager(): BillingManager? {
@@ -256,20 +265,26 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     val currentRoute: StateFlow<String> = _currentRoute.asStateFlow()
 
     // ─── Subscription / Monetization ─────────────────────────────────────────
-    private val _subscriptionState = MutableStateFlow(SubscriptionState(isPro = true, isLoading = false))
+    // Starts as "not Pro, still loading" until BillingManager reports the real state
+    // (mirrored in via setBillingManager). Defaulting to not-Pro is the safe gate.
+    private val _subscriptionState = MutableStateFlow(SubscriptionState(isPro = false, isLoading = true))
     val subscriptionState: StateFlow<SubscriptionState> = _subscriptionState.asStateFlow()
 
-
-
-    private val _debugProOverride = MutableStateFlow(true)
+    // Debug-only Pro override for exercising premium features during development.
+    // Has NO effect in release builds — guarded by BuildConfig.DEBUG below.
+    private val _debugProOverride = MutableStateFlow(false)
     val debugProOverride: StateFlow<Boolean> = _debugProOverride.asStateFlow()
 
     fun toggleDebugPro() {
+        if (!BuildConfig.DEBUG) return // never grant free Pro in a release build
         _debugProOverride.value = !_debugProOverride.value
         speakText(if (_debugProOverride.value) "Premium Pro Active" else "Premium Pro Inactive")
     }
 
-    val isPro: Boolean get() = true
+    // Pro entitlement = a real, acknowledged Google Play subscription (mirrored from
+    // BillingManager). The debug override only applies in debug builds.
+    val isPro: Boolean get() =
+        _subscriptionState.value.isPro || (BuildConfig.DEBUG && _debugProOverride.value)
 
     private val _speedWarningThreshold = MutableStateFlow(8)
     val speedWarningThreshold: StateFlow<Int> = _speedWarningThreshold.asStateFlow()

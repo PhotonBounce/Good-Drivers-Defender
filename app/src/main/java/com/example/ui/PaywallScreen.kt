@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.viewmodel.RecorderViewModel
+import com.aistudio.driverrecorder.gpxrt.BuildConfig
 import kotlinx.coroutines.delay
 
 // Feature comparison row data
@@ -55,6 +56,13 @@ fun PaywallScreen(
     onDismiss: () -> Unit
 ) {
     val subState by viewModel.subscriptionState.collectAsState()
+
+    // Real, localized prices from Google Play (falls back to defaults until the
+    // product details load). Reading subState above means this recomposes — and
+    // re-reads the live prices — once BillingManager reports loaded state.
+    val billing = viewModel.getBillingManager()
+    val monthlyPrice = billing?.getMonthlyPriceString() ?: "$4.99"
+    val annualPrice = billing?.getAnnualPriceString() ?: "$34.99"
 
     // Animated gradient shimmer on header
     val shimmerTranslate by rememberInfiniteTransition(label = "shimmer")
@@ -149,18 +157,21 @@ fun PaywallScreen(
                         )
                     }
                 }
-                // Secret developer debug override button in top-left
-                IconButton(
-                    onClick = { viewModel.toggleDebugPro() },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.BugReport,
-                        contentDescription = "Debug Override",
-                        tint = Color.White.copy(alpha = 0.15f)
-                    )
+                // Developer debug override — DEBUG BUILDS ONLY. Never ships in release,
+                // so production users cannot unlock Pro for free.
+                if (BuildConfig.DEBUG) {
+                    IconButton(
+                        onClick = { viewModel.toggleDebugPro() },
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BugReport,
+                            contentDescription = "Debug Override",
+                            tint = Color.White.copy(alpha = 0.15f)
+                        )
+                    }
                 }
 
                 // Close button top-right
@@ -204,7 +215,7 @@ fun PaywallScreen(
                         PlanCard(
                             modifier = Modifier.weight(1f),
                             title = "MONTHLY",
-                            price = "$4.99",
+                            price = monthlyPrice,
                             period = "per month",
                             badge = null,
                             isSelected = selectedPlan == "monthly",
@@ -215,9 +226,9 @@ fun PaywallScreen(
                         PlanCard(
                             modifier = Modifier.weight(1f),
                             title = "ANNUAL",
-                            price = "$34.99",
+                            price = annualPrice,
                             period = "per year",
-                            badge = "SAVE 42%",
+                            badge = "BEST VALUE",
                             isSelected = selectedPlan == "annual",
                             onClick = { selectedPlan = "annual" }
                         )
@@ -258,7 +269,7 @@ fun PaywallScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (selectedPlan == "annual") "UNLOCK DEFENDER PRO — $34.99/yr" else "UNLOCK DEFENDER PRO — $4.99/mo",
+                                text = if (selectedPlan == "annual") "UNLOCK DEFENDER PRO — $annualPrice/yr" else "UNLOCK DEFENDER PRO — $monthlyPrice/mo",
                                 color = Color(0xFF0A0A1A),
                                 fontWeight = FontWeight.Black,
                                 fontSize = 13.sp
