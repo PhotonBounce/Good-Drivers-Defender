@@ -13,7 +13,13 @@
       Only re-add it if you genuinely need location while NO foreground service is running.
     -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!--
+      Capped at API 32: the app only writes its own files (scoped storage / MediaStore)
+      and reads its own files via FileProvider, so it never needs broad read access on
+      Android 13+ (where this permission is ignored in favour of granular media perms).
+      Declaring it uncapped requests a deprecated broad permission and invites Play review scrutiny.
+    -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
