@@ -63,9 +63,14 @@ fun CollisionDetectScreen(
     }
 
     fun sendAlert() {
-        val maps = "https://maps.google.com/?q=${"%.6f".format(lat)},${"%.6f".format(lon)}"
+        // Guard against a bogus (0,0) "Null Island" link when GPS has no fix yet.
+        val hasFix = kotlin.math.abs(lat) > 0.0001 || kotlin.math.abs(lon) > 0.0001
+        val locationLine = if (hasFix)
+            "Location: https://maps.google.com/?q=${"%.6f".format(lat)},${"%.6f".format(lon)}"
+        else
+            "Location: GPS fix unavailable — please call to check on me."
         val msg = "🚨 AUTOMATIC COLLISION ALERT — a high-impact event (${"%.1f".format(peakG)}G) was detected.\n" +
-            "Location: $maps\n— Sent automatically by Good Drivers Defender"
+            "$locationLine\n— Sent automatically by Good Drivers Defender"
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, msg)
