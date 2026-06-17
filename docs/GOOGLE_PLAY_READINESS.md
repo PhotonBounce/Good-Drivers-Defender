@@ -125,13 +125,34 @@ Play review friction.
 - [x] Privacy policy template at `web/privacy.html`
 - [x] Store listing copy written at `docs/STORE_LISTING.md`
 
+#### QA loop fixes (continuous review — all verified on CI green)
+- [x] **Monetization enforced** — `isPro` now reflects the real Google Play
+  subscription (was hardcoded `true`, giving every user Pro for free). The
+  debug-Pro override is debug-build-only; paywall shows real localized prices.
+- [x] **Launch crash fixed** — SplashScreen used `java.time` (API 26+) on a
+  minSdk-24 app with no desugaring → crashed on Android 7.0/7.1. Now `SimpleDateFormat`.
+- [x] **SOS / collision safety** — no longer share a (0,0) "Null Island" map link
+  before a GPS fix; they tell the contact GPS is unavailable instead.
+- [x] **FGS notification** honestly discloses active GPS/camera/mic recording.
+- [x] **`READ_EXTERNAL_STORAGE`** capped at `maxSdkVersion=32` (permission hygiene).
+- [x] **Banner ads** hide reactively the instant a user upgrades to Pro.
+- [x] **Play icon** opaque (was RGBA w/ transparent corners → Play reject); lock
+  glyph in achievements screenshot fixed (drawn padlock, not broken emoji).
+- [x] **Web microsite** — real support email + Play Store links, small-phone
+  overflow fixed; **store copy** privacy URL filled + all length limits verified.
+- [x] **Room** destructive-migration evidence-wipe risk documented in-code.
+
 ### [YOU must do]
 - [ ] Add real AdMob IDs (replace `ca-app-pub-3940256099942544` test IDs)
+- [ ] Decide on interstitial ads — `AdManager.showInterstitial()` exists but is
+  never called, so no interstitial revenue. Wire it (frequency-capped) if wanted.
 - [ ] Create upload keystore + add GitHub repo secrets → CI produces signed AAB
-- [ ] Host `web/privacy.html` at a public URL and fill in name/email
+- [ ] Upload `web/` (index.html, style.css, privacy.html) to your host
+  (privacy policy will live at https://photon-bounce.com/privacy.html)
 - [ ] Paste privacy policy URL into Play Console
 - [ ] Complete Data Safety form in Play Console (answers in `docs/STORE_LISTING.md`)
 - [ ] Submit FGS + permissions justification (short demo video of the notification)
 - [ ] Complete IARC content rating questionnaire
 - [ ] Upload assets from `play_assets/` to Play Console
+- [ ] (Optional) Soften "court-ready evidence" marketing claims app-wide
 - [ ] Test on internal testing track on a real device before production rollout
