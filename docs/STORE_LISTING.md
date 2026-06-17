@@ -66,7 +66,7 @@ Camera, Microphone, and Location are required for the dashcam to function. A not
 
 Note: Audio recording laws vary by location. You are responsible for complying with local consent requirements.
 
-Privacy Policy: [YOUR_PRIVACY_POLICY_URL]
+Privacy Policy: https://photon-bounce.com/privacy.html
 ```
 
 ---
