@@ -54,13 +54,18 @@ fun EmergencySosScreen(
                 countdown -= 1
             }
             // Fire share intent
-            val maps = "https://maps.google.com/?q=${"%.6f".format(lat)},${"%.6f".format(lon)}"
+            // Guard against sending a bogus (0,0) "Null Island" link when GPS has no fix yet.
+            val hasFix = kotlin.math.abs(lat) > 0.0001 || kotlin.math.abs(lon) > 0.0001
+            val locationLine = if (hasFix)
+                "My live location: https://maps.google.com/?q=${"%.6f".format(lat)},${"%.6f".format(lon)}"
+            else
+                "My GPS location is not available yet — please call me immediately."
             val last = incidents.maxByOrNull { it.timestamp }
             val incidentLine = if (last != null)
                 "Last incident: ${"%.0f".format(last.speedMph)} mph, ${"%.2f".format(last.maxGForce)}G near ${last.streetOrHighway.ifEmpty { "unknown road" }}."
             else "No incident logged."
             val msg = "🚨 EMERGENCY — I may need help while driving.\n" +
-                "My live location: $maps\n$incidentLine\n— Sent by Good Drivers Defender"
+                "$locationLine\n$incidentLine\n— Sent by Good Drivers Defender"
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, msg)
@@ -145,9 +150,12 @@ fun EmergencySosScreen(
             Column(Modifier.padding(14.dp)) {
                 Text("LIVE LOCATION BROADCAST", color = Color(0xFFEF4444), fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                 Spacer(Modifier.height(6.dp))
+                val hasFix = kotlin.math.abs(lat) > 0.0001 || kotlin.math.abs(lon) > 0.0001
                 Text(
-                    "LAT ${"%.6f".format(lat)}   LON ${"%.6f".format(lon)}",
-                    color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace
+                    if (hasFix) "LAT ${"%.6f".format(lat)}   LON ${"%.6f".format(lon)}"
+                    else "ACQUIRING GPS FIX…",
+                    color = if (hasFix) Color.White else Color(0xFFFCA5A5),
+                    fontSize = 12.sp, fontFamily = FontFamily.Monospace
                 )
                 Text(
                     text = "${incidents.size} incident(s) on file will be referenced",
