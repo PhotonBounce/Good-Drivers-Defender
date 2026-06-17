@@ -308,7 +308,15 @@ def ss_achievements():
         pcard(d, [bx, by, bx+480, by+240], border=border)
         oc = col if unlocked else "475569"
         d.ellipse([cx2-44, cy2-64, cx2+44, cy2+24], fill=(hx(col)[0],hx(col)[1],hx(col)[2],60 if unlocked else 30))
-        T(d, (cx2, cy2-20), "★" if unlocked else "🔒", "bold", 40, oc, "mm")
+        if unlocked:
+            T(d, (cx2, cy2-20), "★", "bold", 40, oc, "mm")
+        else:
+            # Drawn padlock — avoids broken emoji glyph (🔒) in non-emoji fonts
+            lc = hx(oc)
+            px2, py2 = cx2, cy2-20
+            d.arc([px2-12, py2-24, px2+12, py2-2], start=180, end=360, fill=lc, width=5)
+            rrect(d, [px2-17, py2-6, px2+17, py2+22], 5, fill=oc)
+            d.ellipse([px2-4, py2+4, px2+4, py2+12], fill=hx("1E293B"))
         T(d, (cx2, cy2+36), name, "bold", 26, "FFFFFF" if unlocked else "94A3B8", "mm")
         if unlocked:
             T(d, (cx2, cy2+70), "✓ UNLOCKED", "bold", 22, col, "mm")
