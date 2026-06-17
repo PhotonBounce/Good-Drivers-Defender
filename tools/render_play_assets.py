@@ -93,7 +93,9 @@ def make_feature_graphic():
 # ─────────────────────────────────────────────────────────────────
 def make_icon():
     S = 512
-    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    # Opaque square background — Google Play requires a 32-bit PNG with NO
+    # transparency and applies its own corner-rounding mask.
+    img = Image.new("RGB", (S, S), hx("0F172A"))
     d = ImageDraw.Draw(img, "RGBA")
 
     # Background circle
@@ -108,7 +110,7 @@ def make_icon():
     d.ellipse([S//2-16, S//2+88, S//2+16, S//2+120], fill=hx("FFFFFF"))
 
     img.save(os.path.join(OUT, "icon_512.png"))
-    print("  ✓ icon_512.png  (512×512)")
+    print("  ✓ icon_512.png  (512×512, opaque)")
 
 
 # ─────────────────────────────────────────────────────────────────
