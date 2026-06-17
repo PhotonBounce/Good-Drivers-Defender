@@ -250,7 +250,7 @@ fun DashboardScreen(
                             StealthClockText()
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Good Drivers' Defender • Pro Shield Active",
+                                text = "Good Drivers Defender • Pro Shield Active",
                                 color = Color.LightGray.copy(alpha = 0.15f),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Normal

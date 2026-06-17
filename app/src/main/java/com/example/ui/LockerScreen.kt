@@ -295,8 +295,8 @@ fun LockerScreen(
                                                                 val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                                                                     type = "application/zip"
                                                                     putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                                                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Good Drivers' Defender - Certified Evidence Package")
-                                                                    putExtra(android.content.Intent.EXTRA_TEXT, "Enclosed is a formal Good Drivers' Defender evidence bundle containing certified telemetries and camera manifests.")
+                                                                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Good Drivers Defender - Certified Evidence Package")
+                                                                    putExtra(android.content.Intent.EXTRA_TEXT, "Enclosed is a formal Good Drivers Defender evidence bundle containing certified telemetries and camera manifests.")
                                                                     addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                                                 }
                                                                 context.startActivity(android.content.Intent.createChooser(shareIntent, "Deliver Evidence ZIP"))
