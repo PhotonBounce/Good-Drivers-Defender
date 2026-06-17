@@ -115,8 +115,10 @@ class DefenderService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Defender Pro Shield Engaged")
-            .setContentText("Telemetry secure against lockscreens & accidental button presses.")
+            // Foreground-service notification must honestly disclose active data access
+            // (Play policy for FGS type location|microphone). Tell the user recording is on.
+            .setContentTitle("Recording active — Good Drivers Defender")
+            .setContentText("GPS, camera & microphone are in use to record your drive. Tap to open.")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -129,7 +131,7 @@ class DefenderService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
-                "Good Drivers' Defender Service",
+                "Recording Service",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
             val manager = getSystemService(NotificationManager::class.java)
