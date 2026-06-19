@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -100,8 +101,6 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
      * Saved to private evidence_media dir as incident_<id>_video.mp4
      */
     fun recordEvidentiaryVideoClip(incidentId: Long) {
-        // Use the pre‑created evidenceDir instead of recreating each call
-        val dir = evidenceDir
         val capture = synchronized(this) { activeVideoCapture } ?: return
         try {
             val dir = File(getApplication<Application>().filesDir, "evidence_media")
@@ -177,6 +176,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     private fun startAudioRecording(tripId: String) {
         if (!isPro) return
         if (!_isSoundEnabled.value) return
+        var recorder: MediaRecorder? = null
         try {
             val dir = File(getApplication<Application>().filesDir, "evidence_media")
             if (!dir.exists()) {
@@ -185,7 +185,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
             val file = File(dir, "trip_${tripId}_audio.m4a")
             audioFile = file
 
-            val recorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            recorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                 MediaRecorder(getApplication())
             } else {
                 @Suppress("DEPRECATION")
@@ -204,6 +204,9 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
             mediaRecorder = recorder
         } catch (e: Exception) {
             e.printStackTrace()
+            // Release the half-initialized recorder so the mic/hardware isn't leaked.
+            runCatching { recorder?.release() }
+            mediaRecorder = null
         }
     }
 
@@ -283,8 +286,18 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
 
     // Pro entitlement = a real, acknowledged Google Play subscription (mirrored from
     // BillingManager). The debug override only applies in debug builds.
+    // Use this synchronous getter from event handlers (onClick etc.) where the live value
+    // is read at the moment of the action.
     val isPro: Boolean get() =
         _subscriptionState.value.isPro || (BuildConfig.DEBUG && _debugProOverride.value)
+
+    // Observable equivalent of [isPro] for Composables: reads taken DURING composition must
+    // collect this so gated UI (e.g. the evidence locker) recomposes when Pro status changes
+    // mid-session, rather than reading the non-observable getter once.
+    val isProFlow: StateFlow<Boolean> =
+        combine(_subscriptionState, _debugProOverride) { sub, dbg ->
+            sub.isPro || (BuildConfig.DEBUG && dbg)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _speedWarningThreshold = MutableStateFlow(8)
     val speedWarningThreshold: StateFlow<Int> = _speedWarningThreshold.asStateFlow()
@@ -756,6 +769,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     // Accelerometer checks for sudden braking and crash triggers
     override fun onSensorChanged(event: SensorEvent?) {
         if (event == null || event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
+        if (event.values.size < 3) return // guard against short sensor payloads
 
         val x = event.values[0]
         val y = event.values[1]
@@ -764,7 +778,8 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         // Calculate direct net acceleration vector against Earth's standard gravity
         val currentAccelNorm = sqrt(x * x + y * y + z * z)
         val gValue = (currentAccelNorm / SensorManager.GRAVITY_EARTH).toDouble()
-        _gForce.value = String.format(Locale.US, "%.2f", gValue).toDouble()
+        // Round to 2 decimals for display without the redundant String round-trip.
+        _gForce.value = kotlin.math.round(gValue * 100.0) / 100.0
 
         // Detect a hard brake spike: sudden horizontal deceleration force
         // Generally, normal driving averages ~1G total. Sudden deceleration shows heavy spike
@@ -784,15 +799,19 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
 
     fun exportEvidenceZip(context: Context, incidentsToExport: List<IncidentRecord>, onResult: (String?) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
+            // Held outside the try so the underlying file/zip stream is closed on EVERY exit
+            // path (success, throw, or cancellation) — not just the happy path.
+            var streamToClose: java.io.Closeable? = null
             try {
                 val cacheDir = context.cacheDir
                 val zipFile = java.io.File(cacheDir, "Defender_Evidence_Bundle_${System.currentTimeMillis()}.zip")
                 val zipOut = java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile))
+                streamToClose = zipOut
 
                 // 1. Write metadata/report file
                 val reportBuilder = StringBuilder()
                 reportBuilder.append("=====================================================\n")
-                reportBuilder.append("GOOD DRIVERS' DEFENDER - COMPREHENSIVE EVIDENCE BUNDLE\n")
+                reportBuilder.append("GOOD DRIVERS DEFENDER - COMPREHENSIVE EVIDENCE BUNDLE\n")
                 reportBuilder.append("=====================================================\n\n")
                 reportBuilder.append("Export Time (ISO): ${SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())}\n")
                 reportBuilder.append("Total Stamped Incidents Packaged: ${incidentsToExport.size}\n")
@@ -821,7 +840,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
                     // Generate dummy camera frames using ASCII art with overlay stamp
                      val frameContent = """
                          ======================================================================
-                         GOOD DRIVERS' DEFENDER - DUAL-CAM EMBEDDED TELEMETRY TIMESTAMP OVERLAY
+                         GOOD DRIVERS DEFENDER - DUAL-CAM EMBEDDED TELEMETRY TIMESTAMP OVERLAY
                          ======================================================================
                          TIMESTAMP STAMP: [ $dateFormatted ]
                          CUSTODY KEY: [ ${incident.sessionFrameFolder} ]
@@ -955,6 +974,10 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
                 withContext(Dispatchers.Main) {
                     onResult(null)
                 }
+            } finally {
+                // Idempotent: the success path already closed it; runCatching swallows
+                // the harmless double-close and any close-time error.
+                runCatching { streamToClose?.close() }
             }
         }
     }
@@ -1361,6 +1384,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         super.onCleared()
         activeRecording?.stop()
         activeRecording = null
+        stopAudioRecording() // release the audio MediaRecorder + mic if still recording
         sensorManager?.unregisterListener(this)
         locationCallback?.let {
             fusedLocationClient?.removeLocationUpdates(it)

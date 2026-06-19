@@ -44,7 +44,8 @@ fun ReportGeneratorScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val isPro = viewModel.isPro
+    // Observe so the gate reacts if Pro status changes while this screen is composed.
+    val isPro by viewModel.isProFlow.collectAsState()
 
     if (!isPro) {
         Box(

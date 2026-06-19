@@ -168,7 +168,9 @@ fun LockerScreen(
                 )
             }
 
-            val isPro = viewModel.isPro
+            // Observe so the locker reveals all incidents the moment the user upgrades,
+            // without needing a navigation event to force recomposition.
+            val isPro by viewModel.isProFlow.collectAsState()
             val visibleIncidents = if (isPro) incidents else incidents.take(1)
 
             LazyColumn(

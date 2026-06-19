@@ -6,7 +6,7 @@ Material 3, Room, and CameraX. Monetized with AdMob + a Play Billing "Pro" subsc
 unlocks the report builder).
 
 - **applicationId:** `com.aistudio.driverrecorder.gpxrt`
-- **Version:** 1.2 (versionCode 3) · **minSdk:** 24 · **targetSdk/compileSdk:** 35
+- **Version:** 2.0 (versionCode 4) · **minSdk:** 24 · **targetSdk/compileSdk:** 35
 
 ## Build
 
