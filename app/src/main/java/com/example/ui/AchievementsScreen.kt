@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.IncidentRecord
+import com.example.data.ScoreTrend
 import com.example.viewmodel.RecorderViewModel
 import java.util.Calendar
 
@@ -45,7 +48,11 @@ private data class Badge(
     val tint: Color
 ) { val unlocked get() = progress >= 1f }
 
-private fun buildBadges(incidents: List<IncidentRecord>): List<Badge> {
+private fun buildBadges(
+    incidents: List<IncidentRecord>,
+    scoreTrend: ScoreTrend = ScoreTrend.STABLE,
+    recentScores: List<Int> = emptyList()
+): List<Badge> {
     val total = incidents.size
     val hardBrakes = incidents.count { it.maxGForce >= 1.5 }
     val auto = incidents.count { it.isAutoCaptured }
@@ -54,6 +61,7 @@ private fun buildBadges(incidents: List<IncidentRecord>): List<Badge> {
         val h = Calendar.getInstance().apply { timeInMillis = it.timestamp }.get(Calendar.HOUR_OF_DAY)
         h >= 20 || h < 5
     }
+    val highScoreCount = recentScores.count { it >= 80 }
     fun frac(v: Int, target: Int) = (v.toFloat() / target).coerceIn(0f, 1f)
     return listOf(
         Badge("First Evidence", "Log your first incident", Icons.Default.Verified, frac(total, 1), Color(0xFF22C55E)),
@@ -63,7 +71,11 @@ private fun buildBadges(incidents: List<IncidentRecord>): List<Badge> {
         Badge("Sentinel", "Auto-capture 5 events", Icons.Default.Bolt, frac(auto, 5), Color(0xFFF97316)),
         Badge("Night Guardian", "Log a night-time incident", Icons.Default.DarkMode, frac(night, 1), Color(0xFF818CF8)),
         Badge("Speed Aware", "Record a 60+ mph event", Icons.Default.Speed,
-            if (maxSpeed >= 60) 1f else (maxSpeed / 60.0).toFloat().coerceIn(0f, 1f), Color(0xFFEF4444))
+            if (maxSpeed >= 60) 1f else (maxSpeed / 60.0).toFloat().coerceIn(0f, 1f), Color(0xFFEF4444)),
+        Badge("Consistent Improver", "Trend improving over last trips", Icons.Default.TrendingUp,
+            if (scoreTrend == ScoreTrend.IMPROVING) 1f else 0f, Color(0xFF34D399)),
+        Badge("Safety Streak", "Score 80+ on 5 recent trips", Icons.Default.WorkspacePremium,
+            frac(highScoreCount, 5), Color(0xFFFCD34D))
     )
 }
 
@@ -73,7 +85,9 @@ fun AchievementsScreen(
     modifier: Modifier = Modifier
 ) {
     val incidents by viewModel.allIncidents.collectAsState()
-    val badges = buildBadges(incidents)
+    val scoreTrend by viewModel.scoreTrend.collectAsState()
+    val recentScores by viewModel.recentTripScores.collectAsState()
+    val badges = buildBadges(incidents, scoreTrend, recentScores)
     val unlocked = badges.count { it.unlocked }
     val xp = incidents.size * 100 + incidents.count { it.isAutoCaptured } * 50 + unlocked * 75
     val level = xp / 500 + 1

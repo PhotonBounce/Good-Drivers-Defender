@@ -86,3 +86,22 @@ jobs:
           name: test-report
           path: app/build/reports/tests/
           retention-days: 14
+
+      # ── QA screenshot generation ──────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install screenshot deps
+        run: pip install Pillow
+
+      - name: Generate QA screenshots
+        run: python3 tools/render_qa_screenshots.py
+
+      - name: Upload QA screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-screenshots
+          path: qa_screenshots/
+          retention-days: 30

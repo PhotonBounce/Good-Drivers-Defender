@@ -510,3 +510,47 @@ if __name__ == "__main__":
     render_hud()
     render_achievements()
     print("done ->", os.path.abspath(OUT))
+
+    # ── Timestamped screenshot archive ──────────────────────────────────────
+    import shutil
+    from datetime import datetime
+
+    run_label = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    root_dir = os.path.join(os.path.dirname(__file__), "..", "screenshots")
+    archive_dir = os.path.join(root_dir, run_label)
+    os.makedirs(archive_dir, exist_ok=True)
+
+    pngs = sorted(f for f in os.listdir(OUT) if f.endswith(".png"))
+    for name in pngs:
+        shutil.copy(os.path.join(OUT, name), os.path.join(archive_dir, name))
+
+    # Update (or recreate) the "latest" symlink
+    latest_link = os.path.join(root_dir, "latest")
+    if os.path.islink(latest_link):
+        os.remove(latest_link)
+    os.symlink(os.path.abspath(archive_dir), latest_link)
+
+    # Generate index.html gallery
+    rows = "\n".join(
+        f'  <figure style="display:inline-block;margin:8px;text-align:center">'
+        f'<img src="{name}" style="height:320px;border:1px solid #334"/>'
+        f'<figcaption style="color:#94a3b8;font-size:11px;margin-top:4px">{name}</figcaption>'
+        f'</figure>'
+        for name in pngs
+    )
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>QA Screenshots — {run_label}</title>
+<style>body{{background:#0f172a;font-family:sans-serif;padding:16px}}
+h1{{color:#e2e8f0;font-size:18px}}p{{color:#64748b;font-size:12px}}</style>
+</head>
+<body>
+<h1>Good Drivers Defender — QA Screenshots</h1>
+<p>Run: {run_label} &nbsp;|&nbsp; {len(pngs)} screens</p>
+{rows}
+</body></html>"""
+    with open(os.path.join(archive_dir, "index.html"), "w") as fh:
+        fh.write(html)
+
+    print(f"Screenshots archived → {os.path.abspath(archive_dir)}")
+    print(f"Gallery             → {os.path.abspath(os.path.join(archive_dir, 'index.html'))}")

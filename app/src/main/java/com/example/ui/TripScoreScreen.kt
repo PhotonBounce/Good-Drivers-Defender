@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.IncidentRecord
+import com.example.data.ScoreTrend
 import com.example.viewmodel.RecorderViewModel
 import kotlin.math.roundToInt
 
@@ -47,7 +50,9 @@ private data class DriveScoreStats(
     val hardBrakes: Int,
     val autoCaptured: Int,
     val topSpeed: Int,
-    val maxG: Double
+    val maxG: Double,
+    val adaptiveScore: Float = 100f,
+    val trend: ScoreTrend = ScoreTrend.STABLE
 )
 
 private fun computeDriveScore(incidents: List<IncidentRecord>): DriveScoreStats {
@@ -86,8 +91,33 @@ fun TripScoreScreen(
     modifier: Modifier = Modifier
 ) {
     val incidents by viewModel.allIncidents.collectAsState()
-    val stats = computeDriveScore(incidents)
+    val adaptiveScore by viewModel.adaptiveScore.collectAsState()
+    val trend by viewModel.scoreTrend.collectAsState()
+    val stats = computeDriveScore(incidents).copy(adaptiveScore = adaptiveScore, trend = trend)
     TripScoreContent(stats = stats, onBack = { viewModel.navigateTo("dashboard") }, modifier = modifier)
+}
+
+@Composable
+private fun TrendChip(trend: ScoreTrend) {
+    val targetColor = when (trend) {
+        ScoreTrend.IMPROVING -> Color(0xFF22C55E)
+        ScoreTrend.STABLE -> Color(0xFFFBBF24)
+        ScoreTrend.DECLINING -> Color(0xFFEF4444)
+    }
+    val chipColor by animateColorAsState(targetColor, animationSpec = tween(600), label = "trendColor")
+    val label = when (trend) {
+        ScoreTrend.IMPROVING -> "↑ IMPROVING"
+        ScoreTrend.STABLE -> "→ STABLE"
+        ScoreTrend.DECLINING -> "↓ DECLINING"
+    }
+    Box(
+        modifier = Modifier
+            .background(chipColor.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+            .border(1.dp, chipColor.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 10.dp, vertical = 2.dp)
+    ) {
+        Text(label, color = chipColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 @Composable
@@ -162,6 +192,15 @@ private fun TripScoreContent(
                 ) {
                     Text("GRADE ${stats.grade}", color = accent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
+                Spacer(Modifier.height(6.dp))
+                TrendChip(trend = stats.trend)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "Adaptive: ${"%.1f".format(stats.adaptiveScore)}",
+                    color = Color(0xFF64748B),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
             }
         }
 
@@ -223,7 +262,7 @@ private fun StatCard(
 @Composable
 private fun TripScorePreview() {
     TripScoreContent(
-        stats = DriveScoreStats(82, "A", 4, 1, 3, 71, 2.13),
+        stats = DriveScoreStats(82, "A", 4, 1, 3, 71, 2.13, adaptiveScore = 85.4f, trend = ScoreTrend.IMPROVING),
         onBack = {}
     )
 }

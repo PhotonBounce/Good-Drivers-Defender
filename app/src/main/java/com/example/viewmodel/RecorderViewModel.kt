@@ -15,9 +15,11 @@ import android.os.Looper
 import android.speech.tts.TextToSpeech
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.AdaptiveScoreEngine
 import com.example.data.EvidenceRepository
 import com.example.data.IncidentRecord
 import com.example.data.BillingManager
+import com.example.data.ScoreTrend
 import com.example.data.SubscriptionState
 import com.example.data.RecorderDatabase
 import com.example.data.TripPoint
@@ -78,6 +80,22 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     // Ensure the internal directory exists when the ViewModel is created
     private val evidenceDir: File = File(getApplication<Application>().filesDir, "evidence_media").apply { if (!exists()) mkdirs() }
     private var activeRecording: Recording? = null
+
+    // ── Adaptive Q-Scoring Engine ────────────────────────────────────────────
+    private val adaptiveEngine = AdaptiveScoreEngine(application)
+    private val _riskLevel = MutableStateFlow(0f)
+    val riskLevel: StateFlow<Float> = _riskLevel.asStateFlow()
+    private val _scoreTrend = MutableStateFlow(ScoreTrend.STABLE)
+    val scoreTrend: StateFlow<ScoreTrend> = _scoreTrend.asStateFlow()
+    private val _adaptiveScore = MutableStateFlow(adaptiveEngine.getAdaptiveScore())
+    val adaptiveScore: StateFlow<Float> = _adaptiveScore.asStateFlow()
+    private val _recentTripScores = MutableStateFlow(adaptiveEngine.getRecentScores(5))
+    val recentTripScores: StateFlow<List<Int>> = _recentTripScores.asStateFlow()
+    private var sessionHardBrakeCount = 0
+    private var tripStartTimeMs = 0L
+    private var lastHardBrakeCountTime = 0L
+    // ────────────────────────────────────────────────────────────────────────
+
     private val _lastVideoFile = MutableStateFlow<File?>(null)
     // Expose list of saved video files for UI
     private val _savedVideos = MutableStateFlow<List<File>>(emptyList())
@@ -545,6 +563,8 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     private fun startRecordingSession() {
         val tripId = "TRIP_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         pruneOldestFilesIfStorageExceeded()
+        sessionHardBrakeCount = 0
+        tripStartTimeMs = System.currentTimeMillis()
         _activeTripId.value = tripId
         _isRecording.value = true
         speakText("Recording started. Telemetry stamped.")
@@ -569,6 +589,16 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         freeTripCapJob?.cancel()
         freeTripCapJob = null
         val stoppedTripId = _activeTripId.value
+
+        // Update adaptive Q-score with this trip's raw score before clearing state
+        val tripIncidents = allIncidents.value.filter { stoppedTripId != null && it.sessionFrameFolder == stoppedTripId }
+        val hardBrakes = tripIncidents.count { it.maxGForce >= 1.5 }
+        val rawScore = (100 - hardBrakes * 8 - (tripIncidents.size - hardBrakes) * 3).coerceIn(0, 100)
+        adaptiveEngine.updateWithTripScore(rawScore)
+        _adaptiveScore.value = adaptiveEngine.getAdaptiveScore()
+        _scoreTrend.value = adaptiveEngine.getTrend()
+        _recentTripScores.value = adaptiveEngine.getRecentScores(5)
+
         _isRecording.value = false
         _activeTripId.value = null
         speakText("Recording stopped. Exporting telemetry.")
@@ -781,10 +811,18 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         // Round to 2 decimals for display without the redundant String round-trip.
         _gForce.value = kotlin.math.round(gValue * 100.0) / 100.0
 
-        // Detect a hard brake spike: sudden horizontal deceleration force
-        // Generally, normal driving averages ~1G total. Sudden deceleration shows heavy spike
-        // Hard braking automatic alerts and auto incident logging disabled per user request.
-        // Telemetry calculation of _gForce is fully preserved above.
+        // Count hard-brake spikes for the adaptive risk level (no incident logging — telemetry only)
+        if (gValue >= 1.5 && _isRecording.value) {
+            val now = System.currentTimeMillis()
+            if (now - lastHardBrakeCountTime > 1500L) {
+                sessionHardBrakeCount++
+                lastHardBrakeCountTime = now
+            }
+        }
+        val elapsedMins = if (tripStartTimeMs > 0) (System.currentTimeMillis() - tripStartTimeMs) / 60000.0 else 0.0
+        _riskLevel.value = adaptiveEngine.computeRiskLevel(
+            _currentSpeed.value, _targetSpeedLimit.value, gValue, sessionHardBrakeCount, elapsedMins
+        )
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {

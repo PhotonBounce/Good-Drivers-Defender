@@ -2,6 +2,7 @@ package com.example.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,8 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontFamily
@@ -180,6 +184,71 @@ fun StealthClockText() {
     )
 }
 
+@Composable
+fun RiskIntelligenceCard(riskLevel: Float, modifier: Modifier = Modifier) {
+    val riskColor = when {
+        riskLevel < 0.35f -> Color(0xFF22C55E)
+        riskLevel < 0.65f -> Color(0xFFFBBF24)
+        else -> Color(0xFFEF4444)
+    }
+    val riskLabel = when {
+        riskLevel < 0.35f -> "LOW RISK"
+        riskLevel < 0.65f -> "MODERATE RISK"
+        else -> "HIGH RISK"
+    }
+    val pulse = rememberInfiniteTransition(label = "riskPulse")
+    val pulseAlpha by pulse.animateFloat(
+        initialValue = 0.25f, targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "riskAlpha"
+    )
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, riskColor.copy(alpha = if (riskLevel > 0.5f) pulseAlpha else 0.3f))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Canvas(modifier = Modifier.size(8.dp)) {
+                    drawCircle(color = riskColor.copy(alpha = pulseAlpha))
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "RISK INTELLIGENCE",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = riskLabel,
+                color = riskColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Black
+            )
+            Canvas(modifier = Modifier.width(80.dp).height(6.dp)) {
+                val filled = size.width * riskLevel
+                drawRoundRect(color = Color(0xFF1E293B), size = size, cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f))
+                if (filled > 0f) {
+                    drawRoundRect(
+                        color = riskColor,
+                        size = size.copy(width = filled),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f)
+                    )
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun DashboardScreen(
@@ -207,6 +276,7 @@ fun DashboardScreen(
     val speedWarningThreshold by viewModel.speedWarningThreshold.collectAsState()
     val frameRateFps by viewModel.frameRateFps.collectAsState()
     val recordingMode by viewModel.recordingMode.collectAsState()
+    val riskLevel by viewModel.riskLevel.collectAsState()
 
     var showReportDialog by remember { mutableStateOf(false) }
     var showOverrideDialog by remember { mutableStateOf(false) }
@@ -600,7 +670,11 @@ fun DashboardScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                RiskIntelligenceCard(riskLevel = riskLevel)
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // ── PRO TOOLS quick-launch (Drive Score / Emergency SOS / Evidence Timeline) ──
                 Row(
