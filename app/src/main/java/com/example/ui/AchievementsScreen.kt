@@ -33,6 +33,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.IncidentRecord
 import com.example.data.ScoreTrend
+import com.example.data.driverLevel
+import com.example.data.driverXp
+import com.example.data.levelProgress
 import com.example.viewmodel.RecorderViewModel
 import java.util.Calendar
 
@@ -89,9 +92,9 @@ fun AchievementsScreen(
     val recentScores by viewModel.recentTripScores.collectAsState()
     val badges = buildBadges(incidents, scoreTrend, recentScores)
     val unlocked = badges.count { it.unlocked }
-    val xp = incidents.size * 100 + incidents.count { it.isAutoCaptured } * 50 + unlocked * 75
-    val level = xp / 500 + 1
-    val levelProgress = (xp % 500) / 500f
+    val xp = driverXp(incidents.size, incidents.count { it.isAutoCaptured }, unlocked)
+    val level = driverLevel(xp)
+    val levelProgress = levelProgress(xp)
 
     Column(
         modifier = modifier
