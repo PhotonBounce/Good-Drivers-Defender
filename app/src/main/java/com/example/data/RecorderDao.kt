@@ -28,7 +28,10 @@ interface RecorderDao {
     @Query("SELECT * FROM trip_points WHERE runId = :runId ORDER BY timestamp ASC")
     fun getPointsForTrip(runId: String): Flow<List<TripPoint>>
 
-    @Query("SELECT DISTINCT runId FROM trip_points ORDER BY timestamp DESC")
+    // One row per trip, ordered by each trip's most recent point. Using GROUP BY + MAX(timestamp)
+    // (instead of DISTINCT + ORDER BY timestamp) makes "most recent trip first" deterministic —
+    // with DISTINCT the order depended on an arbitrary per-trip timestamp.
+    @Query("SELECT runId FROM trip_points GROUP BY runId ORDER BY MAX(timestamp) DESC")
     fun getUniqueTrips(): Flow<List<String>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
