@@ -88,6 +88,12 @@ def render_drive_score():
     rrect(d, [cx-78, cy+86, cx+78, cy+128], 12, fill="#14321F", outline=accent, width=2)
     T(d, (cx, cy+107), f"GRADE {grade}", "bold", 24, accent, "mm")
 
+    # Adaptive Q-score: trend chip + EMA score (mirrors TripScoreScreen)
+    ty = cy + R + 36
+    rrect(d, [cx-135, ty-24, cx+135, ty+24], 11, fill="#143020", outline="#22C55E", width=2)
+    T(d, (cx, ty), "▲ IMPROVING", "bold", 23, "#22C55E", "mm")
+    T(d, (cx, ty+50), "Adaptive: 85.4", "mono", 22, "#64748B", "mm")
+
     # stat cards
     cards = [
         ("TOP SPEED", "71", "mph", "#38BDF8"),
@@ -96,7 +102,7 @@ def render_drive_score():
         ("AUTO-SAVED", "3", "clips", "#22C55E"),
     ]
     gx0, gw, gh, gap = 40, (W-80-24)//2, 175, 24
-    sy = cy + R + 70
+    sy = cy + R + 150
     for i, (lab, val, unit, tint) in enumerate(cards):
         cxx = gx0 + (i % 2) * (gw + gap)
         cyy = sy + (i // 2) * (gh + gap)
@@ -111,6 +117,7 @@ def render_drive_score():
       "Based on 4 logged incidents. Fewer hard-braking events raise your score.",
       "reg", 20, "#94A3B8", "lm")
     save(img, "01_drive_score.png")
+# NOTE: stat-card grid pushed down to make room for the adaptive trend row above.
 
 
 # ─────────────────────────── 2. EMERGENCY SOS ───────────────────────────
@@ -198,7 +205,7 @@ def render_timeline():
 def render_dashboard_protools():
     img, d = new_screen("#020617")
     y = SB + 24
-    T(d, (40, y), "DASHBOARD  ·  bottom console (new row highlighted)", "bold", 24, "#94A3B8", "lm")
+    T(d, (40, y), "DASHBOARD  ·  bottom console (Risk Intelligence highlighted)", "bold", 24, "#94A3B8", "lm")
     yy = y + 50
     # speed card + limit/G column (mirrors existing dashboard row)
     rrect(d, [40, yy, 470, yy+200], 18, fill="#1E293B")
@@ -211,10 +218,21 @@ def render_dashboard_protools():
     T(d, (W//2+190, yy+140), "2.13 G", "bold", 30, "#EF4444", "mm")
     T(d, (W//2+190, yy+176), "HEAVY FORCE SHOCK", "reg", 17, "#E5E7EB", "mm")
 
-    # NEW pro tools row (highlighted)
-    ry = yy + 230
-    d.rounded_rectangle([28, ry-16, W-28, ry+128], radius=20, outline=hx("#FBBF24"), width=3)
-    T(d, (44, ry-40), "▼ NEW: PRO TOOLS", "bold", 20, "#FBBF24", "lm")
+    # NEW: Risk Intelligence bar (smoothed real-time Q-risk readout, highlighted)
+    riy = yy + 256
+    d.rounded_rectangle([28, riy-14, W-28, riy+78], radius=18, outline=hx("#FBBF24"), width=3)
+    T(d, (44, riy-40), "▼ NEW: RISK INTELLIGENCE", "bold", 20, "#FBBF24", "lm")
+    rrect(d, [40, riy, W-40, riy+64], 14, fill="#0F172A")
+    d.ellipse([62, riy+24, 80, riy+42], fill=hx("#FBBF24"))
+    T(d, (98, riy+33), "RISK INTELLIGENCE", "bold", 18, "#94A3B8", "lm")
+    T(d, (W//2+40, riy+33), "MODERATE RISK", "bold", 20, "#FBBF24", "mm")
+    mx0, mx1 = W-250, W-60
+    rrect(d, [mx0, riy+26, mx1, riy+40], 6, fill="#1E293B")
+    rrect(d, [mx0, riy+26, mx0+int((mx1-mx0)*0.55), riy+40], 6, fill="#FBBF24")
+
+    # pro tools row
+    ry = yy + 396
+    T(d, (44, ry-40), "PRO TOOLS", "bold", 20, "#94A3B8", "lm")
     tools = [("SCORE", "#22C55E", "★"), ("SOS", "#EF4444", "✚"), ("TIMELINE", "#38BDF8", "≡")]
     bw = (W-80-2*16)//3
     for i,(lab,col,gly) in enumerate(tools):
