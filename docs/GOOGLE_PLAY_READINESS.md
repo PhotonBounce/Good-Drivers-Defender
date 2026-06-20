@@ -141,6 +141,11 @@ Play review friction.
 - [x] **Web microsite** — real support email + Play Store links, small-phone
   overflow fixed; **store copy** privacy URL filled + all length limits verified.
 - [x] **Room** destructive-migration evidence-wipe risk documented in-code.
+- [x] **Cloud-backup privacy** — Auto Backup no longer uploads the incident
+  database or `evidence_media/` (video/audio/snapshots) to the user's Google
+  Drive; sensitive evidence stays on-device, matching the Data Safety
+  "stored on-device" declaration. Local device-to-device transfer is still
+  allowed. See `res/xml/data_extraction_rules.xml` + `backup_rules.xml`.
 
 ### [YOU must do]
 - [ ] Add real AdMob IDs (replace `ca-app-pub-3940256099942544` test IDs)

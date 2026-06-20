@@ -1,13 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Legacy Auto Backup rules (Android 11 / API 30 and below).
+   See data_extraction_rules.xml for the API 31+ equivalent and the rationale.
+
+   PRIVACY: exclude sensitive driving evidence (incident media + GPS database)
+   from cloud backup so it never leaves the device.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="database" path="driver_recorder_db" />
+    <exclude domain="database" path="driver_recorder_db-wal" />
+    <exclude domain="database" path="driver_recorder_db-shm" />
+    <exclude domain="file" path="evidence_media" />
 </full-backup-content>
