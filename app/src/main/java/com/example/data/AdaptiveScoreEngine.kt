@@ -5,6 +5,16 @@ import android.content.Context
 enum class ScoreTrend { IMPROVING, STABLE, DECLINING }
 
 /**
+ * Canonical Drive-Score formula, shared by the live trip-end calculation
+ * (RecorderViewModel.stopRecordingSession) and the Drive Score screen
+ * (TripScoreScreen.computeDriveScore) so the two can never drift apart.
+ * Each hard brake costs 8 points, each minor incident 3, clamped to 0..100.
+ */
+fun rawTripScore(hardBrakes: Int, minorIncidents: Int): Int =
+    (100 - hardBrakes * 8 - minorIncidents * 3).coerceIn(0, 100)
+
+
+/**
  * Q-learning-inspired adaptive driver score engine.
  * Tracks trip score history using an Exponential Moving Average (α=0.3) so recent trips
  * are weighted more heavily than older ones. Also computes a real-time risk level from

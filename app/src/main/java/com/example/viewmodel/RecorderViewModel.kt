@@ -593,7 +593,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         // Update adaptive Q-score with this trip's raw score before clearing state
         val tripIncidents = allIncidents.value.filter { stoppedTripId != null && it.sessionFrameFolder == stoppedTripId }
         val hardBrakes = tripIncidents.count { it.maxGForce >= 1.5 }
-        val rawScore = (100 - hardBrakes * 8 - (tripIncidents.size - hardBrakes) * 3).coerceIn(0, 100)
+        val rawScore = com.example.data.rawTripScore(hardBrakes, tripIncidents.size - hardBrakes)
         adaptiveEngine.updateWithTripScore(rawScore)
         _adaptiveScore.value = adaptiveEngine.getAdaptiveScore()
         _scoreTrend.value = adaptiveEngine.getTrend()

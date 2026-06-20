@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.IncidentRecord
 import com.example.data.ScoreTrend
+import com.example.data.rawTripScore
 import com.example.viewmodel.RecorderViewModel
 import kotlin.math.roundToInt
 
@@ -58,8 +59,7 @@ private data class DriveScoreStats(
 private fun computeDriveScore(incidents: List<IncidentRecord>): DriveScoreStats {
     val hardBrakes = incidents.count { it.maxGForce >= 1.5 }
     val minor = incidents.size - hardBrakes
-    val raw = 100 - hardBrakes * 8 - minor * 3
-    val score = raw.coerceIn(0, 100)
+    val score = rawTripScore(hardBrakes, minor)
     val grade = when {
         score >= 95 -> "A+"
         score >= 85 -> "A"
