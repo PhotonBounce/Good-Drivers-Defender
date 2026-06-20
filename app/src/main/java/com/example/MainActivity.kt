@@ -217,6 +217,16 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Note: audio-recording consent laws vary by state and country. " +
+                                    "You are responsible for complying with local laws when recording conversations.",
+                                color = Color(0xFFFBBF24),
+                                fontSize = 9.sp,
+                                lineHeight = 12.sp
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             Button(
                                 onClick = {
                                     diagnosticPermissionsState.launchMultiplePermissionRequest()

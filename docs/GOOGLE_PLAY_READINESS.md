@@ -146,6 +146,9 @@ Play review friction.
   Drive; sensitive evidence stays on-device, matching the Data Safety
   "stored on-device" declaration. Local device-to-device transfer is still
   allowed. See `res/xml/data_extraction_rules.xml` + `backup_rules.xml`.
+- [x] **Audio-consent advisory** — permission onboarding now warns that
+  audio-recording consent laws vary by jurisdiction and the user is responsible
+  for compliance (addresses the §6 legal note, without claiming to give legal advice).
 
 ### [YOU must do]
 - [ ] Add real AdMob IDs (replace `ca-app-pub-3940256099942544` test IDs)
