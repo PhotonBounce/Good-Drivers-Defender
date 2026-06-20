@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Camera
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.IncidentRecord
 import com.example.data.ScoreTrend
+import com.example.data.coachingTip
 import com.example.data.rawTripScore
 import com.example.viewmodel.RecorderViewModel
 import kotlin.math.roundToInt
@@ -225,6 +227,24 @@ private fun TripScoreContent(
                 "Based on ${stats.totalIncidents} logged incident(s). Fewer hard-braking events raise your score.",
             color = Color(0xFF94A3B8), fontSize = 11.sp
         )
+
+        Spacer(Modifier.height(12.dp))
+        // Coaching tip — the single most impactful thing to improve next.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF142033), RoundedCornerShape(12.dp))
+                .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = coachingTip(stats.hardBrakes, stats.totalIncidents - stats.hardBrakes, stats.topSpeed, stats.maxG),
+                color = Color(0xFFCBD5E1), fontSize = 12.sp
+            )
+        }
     }
 }
 

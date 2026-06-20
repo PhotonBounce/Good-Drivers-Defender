@@ -116,6 +116,14 @@ def render_drive_score():
     T(d, (40, sy + 2*gh + gap + 30),
       "Based on 4 logged incidents. Fewer hard-braking events raise your score.",
       "reg", 20, "#94A3B8", "lm")
+
+    # coaching tip card (mirrors the in-app coachingTip output for this sample)
+    tipy = sy + 2*gh + gap + 60
+    rrect(d, [40, tipy, W-40, tipy+88], 16, fill="#142033", outline="#38BDF8", width=2)
+    rrect(d, [60, tipy+29, 134, tipy+59], 8, fill="#0B2A3A", outline="#38BDF8", width=2)
+    T(d, (97, tipy+44), "TIP", "bold", 18, "#38BDF8", "mm")
+    T(d, (152, tipy+34), "Sharp g-forces detected — smoother cornering", "reg", 19, "#CBD5E1", "lm")
+    T(d, (152, tipy+62), "and acceleration will help.", "reg", 19, "#CBD5E1", "lm")
     save(img, "01_drive_score.png")
 # NOTE: stat-card grid pushed down to make room for the adaptive trend row above.
 
