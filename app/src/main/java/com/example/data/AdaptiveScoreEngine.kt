@@ -75,4 +75,12 @@ class AdaptiveScoreEngine(context: Context) {
         else 0f
         return (0.4f * speedRisk + 0.4f * gRisk + 0.2f * brakeRisk).coerceIn(0f, 1f)
     }
+
+    /**
+     * EMA-smooths the live risk level so the dashboard halo glides between states
+     * instead of flickering on momentary sensor spikes. alpha = how much the newest
+     * raw reading moves the displayed value (0.25 = gentle glide).
+     */
+    fun smoothRisk(previous: Float, raw: Float, alpha: Float = 0.25f): Float =
+        (alpha * raw + (1f - alpha) * previous).coerceIn(0f, 1f)
 }

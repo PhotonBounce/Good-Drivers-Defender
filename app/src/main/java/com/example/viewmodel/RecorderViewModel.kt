@@ -820,9 +820,11 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
             }
         }
         val elapsedMins = if (tripStartTimeMs > 0) (System.currentTimeMillis() - tripStartTimeMs) / 60000.0 else 0.0
-        _riskLevel.value = adaptiveEngine.computeRiskLevel(
+        val rawRisk = adaptiveEngine.computeRiskLevel(
             _currentSpeed.value, _targetSpeedLimit.value, gValue, sessionHardBrakeCount, elapsedMins
         )
+        // EMA-smooth so the dashboard risk halo glides instead of flickering on spikes
+        _riskLevel.value = adaptiveEngine.smoothRisk(_riskLevel.value, rawRisk)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {

@@ -111,4 +111,20 @@ class AdaptiveScoreEngineTest {
         assertEquals(89, rawTripScore(1, 1)) // 100 - 8 - 3
         assertEquals(0, rawTripScore(20, 0)) // clamped at 0
     }
+
+    @Test
+    fun `smooth risk eases toward the raw reading by alpha`() {
+        // 0.25*1.0 + 0.75*0.0 = 0.25
+        assertEquals(0.25f, engine.smoothRisk(0f, 1f), 0.001f)
+        // a steady raw reading converges upward over repeated ticks
+        var r = 0f
+        repeat(20) { r = engine.smoothRisk(r, 1f) }
+        assertTrue("expected convergence toward 1.0 but was $r", r > 0.99f)
+    }
+
+    @Test
+    fun `smooth risk stays within bounds`() {
+        assertEquals(1f, engine.smoothRisk(1f, 1f), 0.001f)
+        assertEquals(0f, engine.smoothRisk(0f, 0f), 0.001f)
+    }
 }
