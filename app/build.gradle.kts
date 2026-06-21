@@ -126,7 +126,6 @@ dependencies {
   implementation(libs.okhttp)
   implementation(libs.play.services.location)
   implementation("com.android.billingclient:billing-ktx:7.1.1")
-  implementation(libs.play.services.ads)
   implementation(libs.retrofit)
   implementation("com.google.guava:guava:31.1-android")
   implementation("com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava")
