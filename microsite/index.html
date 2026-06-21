@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Good Drivers Defender — AI Dashcam & Driving Coach</title>
+<meta name="description" content="An intelligent Android dashcam that scores your driving, flags real-time risk, coaches you, and builds on-device evidence. Coming soon to Google Play." />
+<meta property="og:title" content="Good Drivers Defender" />
+<meta property="og:description" content="AI dashcam & driving coach — adaptive scoring, real-time risk intelligence, on-device evidence. Coming soon to Google Play." />
+<meta property="og:image" content="assets/feature.png" />
+<meta name="theme-color" content="#05060f" />
+<link rel="icon" href="assets/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- animated parallax background -->
+<div class="bg-wrap">
+  <div class="bg-grad" data-parallax="0.15"></div>
+  <div class="bg-aurora"></div>
+  <div class="bg-grid" data-parallax="0.05"></div>
+  <div class="stars" id="stars"></div>
+</div>
+
+<!-- nav -->
+<nav class="nav">
+  <a class="brand" href="#top">
+    <img src="assets/icon.png" alt="Good Drivers Defender icon" />
+    <span><b>Good Drivers Defender</b><span>AI Dashcam &amp; Driving Coach</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="#demo">Live demo</a>
+    <a href="#intel">Intelligence</a>
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a class="pill" href="#pricing"><span class="dot"></span>Coming soon to Google Play</a>
+  </div>
+</nav>
+
+<!-- ===================== HERO + EMULATOR ===================== -->
+<header id="top" class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="play-badge">
+        <svg viewBox="0 0 512 512" fill="none"><path d="M48 16l260 240L48 496c-9 5-20-2-20-13V29c0-11 11-18 20-13z" fill="#34d399"/><path d="M308 256l84-78 80 46c14 8 14 28 0 36l-80 46-84-50z" fill="#fbbf24"/><path d="M48 16l260 240-58 54L28 80V29c0-11 11-18 20-13z" fill="#38bdf8"/><path d="M250 202l58 54-58 50L28 432v-352z" fill="#22c55e" opacity=".0"/></svg>
+        <span>Soon on <b>Google Play</b></span>
+      </div>
+      <h1>Drive smarter.<br><span class="grad">Prove it.</span></h1>
+      <p class="lead">An intelligent Android dashcam that <b>scores how you drive</b>, flags real-time risk on a living halo, coaches you after every trip, and quietly builds tamper-evident, <b>on-device</b> evidence — no cloud, no ads.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#demo">▶ Try the live demo</a>
+        <a class="btn btn-ghost" href="#features">Explore features</a>
+      </div>
+      <div class="hero-stats">
+        <div><b>10</b><span>intelligent screens</span></div>
+        <div><b>7 days</b><span>free VIP trial</span></div>
+        <div><b>100%</b><span>on-device & private</span></div>
+      </div>
+    </div>
+
+    <!-- interactive phone emulator -->
+    <div class="hero-phone" id="demo">
+      <div class="float-chip fc-1"><span class="ic" style="background:#143020;color:#22c55e">▲</span> Score improving</div>
+      <div class="float-chip fc-2"><span class="ic" style="background:#3a1414;color:#ef4444">!</span> Hard brake logged</div>
+      <div class="float-chip fc-3"><span class="ic" style="background:#0b2a3a;color:#38bdf8">◎</span> Risk: moderate</div>
+
+      <div class="phone" id="phone">
+        <div class="phone-screen">
+
+          <!-- DASHBOARD -->
+          <div class="screen active" data-screen="dashboard">
+            <div class="statusbar"><span>9:41</span><div class="sb-right"><span>5G</span><span>▮▮▮▮</span><span>84%</span></div></div>
+            <div class="scr-pad">
+              <div class="e-title">Dashboard</div>
+              <div class="e-sub">Live telemetry • auto-motion ready</div>
+              <div class="row" style="margin-top:10px">
+                <div class="dash-speed grow"><div><div class="num" id="emuSpeed">63</div><div class="unit" style="text-align:center">MPH</div></div></div>
+                <div style="width:118px;display:flex;flex-direction:column;gap:9px">
+                  <div class="mini card grow"><div class="k">LIMIT</div><div class="v">65 MPH</div></div>
+                  <div class="mini grow" style="background:#3a1414;border:1px solid rgba(239,68,68,.4)"><div class="k" style="color:#fca5a5">FORCE</div><div class="v" style="color:#ef4444">2.13 G</div></div>
+                </div>
+              </div>
+              <div class="riskbar">
+                <div class="label"><span style="color:#fbbf24">◎ RISK INTELLIGENCE</span><span style="color:#fbbf24">MODERATE</span></div>
+                <div class="track"><div class="fill"></div></div>
+              </div>
+              <div class="tools">
+                <div class="tool" data-go="score"><div class="ti" style="border-color:#22c55e;color:#22c55e">★</div><div class="tl">SCORE</div></div>
+                <div class="tool" data-go="sos"><div class="ti" style="border-color:#ef4444;color:#ef4444">✚</div><div class="tl">SOS</div></div>
+                <div class="tool" data-go="sentry"><div class="ti" style="border-color:#38bdf8;color:#38bdf8">◎</div><div class="tl">SENTRY</div></div>
+              </div>
+              <div class="startbtn">START TRIP <small>Auto-motion detection armed</small></div>
+            </div>
+          </div>
+
+          <!-- DRIVE SCORE -->
+          <div class="screen" data-screen="score">
+            <div class="statusbar"><span>9:41</span><div class="sb-right"><span>5G</span><span>▮▮▮▮</span><span>84%</span></div></div>
+            <div class="scr-pad">
+              <div class="e-title">Drive Score</div>
+              <div class="e-sub">Your safety rating for logged trips</div>
+              <div class="gauge-wrap">
+                <svg width="186" height="150" viewBox="0 0 186 150">
+                  <circle cx="93" cy="86" r="60" fill="none" stroke="#1e293b" stroke-width="14"/>
+                  <circle cx="93" cy="86" r="60" fill="none" stroke="#22c55e" stroke-width="14" stroke-linecap="round"
+                          stroke-dasharray="377" stroke-dashoffset="68" transform="rotate(-90 93 86)" id="gaugeArc"/>
+                </svg>
+                <div class="score"><b>82</b><small>/ 100</small></div>
+              </div>
+              <div style="text-align:center;margin-top:2px">
+                <span class="chip">▲ IMPROVING</span>
+                <div class="adaptive mono">Adaptive: 85.4</div>
+              </div>
+              <div class="statgrid">
+                <div class="card"><div class="sc-v" style="color:#38bdf8">71<small style="font-size:11px;color:#64748b"> mph</small></div><div class="sc-k">TOP SPEED</div></div>
+                <div class="card"><div class="sc-v" style="color:#f97316">2.13<small style="font-size:11px;color:#64748b"> G</small></div><div class="sc-k">MAX FORCE</div></div>
+              </div>
+              <div class="tip"><span class="tg">TIP</span><p>Sharp g-forces detected — smoother cornering and acceleration will lift your score.</p></div>
+            </div>
+          </div>
+
+          <!-- SOS -->
+          <div class="screen" data-screen="sos">
+            <div class="statusbar"><span>9:41</span><div class="sb-right"><span>5G</span><span>▮▮▮▮</span><span>84%</span></div></div>
+            <div class="scr-pad" style="background:linear-gradient(180deg,#1a0606,transparent)">
+              <div class="e-title" style="color:#fca5a5">Emergency SOS</div>
+              <div class="e-sub">One tap shares your live location with trusted contacts</div>
+              <div class="sos">
+                <div class="sos-btn"><div><b>SOS</b><span>ARMED</span></div></div>
+                <div style="text-align:center;color:#fca5a5;font-size:12px">Sends GPS pin + incident snapshot<br>to 3 emergency contacts</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SENTRY -->
+          <div class="screen" data-screen="sentry">
+            <div class="statusbar"><span>9:41</span><div class="sb-right"><span>5G</span><span>▮▮▮▮</span><span>84%</span></div></div>
+            <div class="scr-pad" style="background:linear-gradient(180deg,#050b16,transparent)">
+              <div class="e-title">Parking Sentry</div>
+              <div class="e-sub">Impact monitoring while you're away</div>
+              <div class="radar"><div class="sweep"></div><div class="blip"></div></div>
+              <div style="text-align:center"><span class="chip">✓ SENTRY ARMED</span><div class="adaptive">Monitoring for impacts &amp; motion</div></div>
+            </div>
+          </div>
+
+          <!-- BADGES -->
+          <div class="screen" data-screen="badges">
+            <div class="statusbar"><span>9:41</span><div class="sb-right"><span>5G</span><span>▮▮▮▮</span><span>84%</span></div></div>
+            <div class="scr-pad">
+              <div class="e-title">Achievements</div>
+              <div class="e-sub">Level 4 Defender • 1,325 XP</div>
+              <div class="xpbar"><i></i></div>
+              <div class="badges">
+                <div class="badge">🛡️</div><div class="badge">🔥</div><div class="badge">🚀</div><div class="badge">⭐</div>
+                <div class="badge">🏆</div><div class="badge">🎯</div><div class="badge lock">🔒</div><div class="badge lock">🔒</div>
+              </div>
+              <div class="tip" style="margin-top:18px"><span class="tg">NEXT</span><p>Log 3 clean trips in a row to unlock the <b>Smooth Operator</b> badge.</p></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- emulator screen switcher -->
+  <div class="wrap" style="margin-top:34px">
+    <div class="emu-nav" style="justify-content:center" id="emuNav">
+      <button class="on" data-go="dashboard">⊞ Dashboard</button>
+      <button data-go="score">★ Drive Score</button>
+      <button data-go="sos">✚ SOS</button>
+      <button data-go="sentry">◎ Parking Sentry</button>
+      <button data-go="badges">🏆 Achievements</button>
+    </div>
+    <p class="hint" style="justify-content:center;margin-top:12px">↑ This is a live interactive demo — tap the buttons or the tiles inside the phone.</p>
+  </div>
+</header>
+
+<!-- ===================== INTELLIGENCE ===================== -->
+<section id="intel">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Driver Intelligence</div>
+      <h2>It doesn't just record. It understands.</h2>
+      <p>Deterministic, on-device intelligence — no servers, no machine-learning black box, no data leaving your phone.</p>
+    </div>
+    <div class="intel">
+      <div class="fcard reveal"><div class="ic" style="color:#22c55e">▲</div><div class="big">Q-Score</div><h3 style="margin-top:6px">Adaptive scoring</h3><p>An EMA-smoothed safety score that weights your recent trips most, with a clear improving / stable / declining trend.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#fbbf24">◎</div><div class="big">Risk</div><h3 style="margin-top:6px">Live risk halo</h3><p>Real-time risk blended from speed, g-force and braking — smoothed so the dashboard glides instead of flickering.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#38bdf8">💡</div><div class="big">Coach</div><h3 style="margin-top:6px">Actionable tips</h3><p>After each trip it names the single most impactful thing to improve next — not just numbers.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#8b5cf6">🏆</div><div class="big">XP</div><h3 style="margin-top:6px">Gamified safety</h3><p>Driver levels, XP and unlockable badges turn safer driving into a streak worth keeping.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FEATURES ===================== -->
+<section id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Everything on board</div>
+      <h2>A full evidence &amp; safety toolkit</h2>
+      <p>Ten purpose-built screens, all working offline and storing everything in your phone's private space.</p>
+    </div>
+    <div class="grid3" id="featGrid">
+      <div class="fcard reveal"><div class="ic" style="color:#38bdf8">🎥</div><h3>Dashcam + GPS</h3><p>Records road video, ambient audio and a GPS-stamped speed track for every trip.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#22c55e">★</div><h3>Drive Score</h3><p>Per-trip safety grade with top speed, peak g-force, hard brakes and auto-saved clips.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#ef4444">✚</div><h3>Emergency SOS</h3><p>One tap shares your live GPS pin and a snapshot with trusted contacts.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#38bdf8">◎</div><h3>Parking Sentry</h3><p>Watches for impacts and motion while you're parked and away.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#fbbf24">📈</div><h3>Live Telemetry</h3><p>Real-time speed and g-force graphs you can scrub back through.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#f97316">💥</div><h3>Collision Detect</h3><p>Auto-flags sudden high-g events and bookmarks the surrounding footage.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#a78bfa">🕶️</div><h3>AR Heads-Up</h3><p>Windshield-reflection HUD projects speed and alerts while you drive.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#22c55e">🗂️</div><h3>Evidence Locker</h3><p>Every incident bundled with timestamps, telemetry and media — exportable as a ZIP.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#fbbf24">🛡️</div><h3>Rights Shield</h3><p>Text-to-speech statements to calmly assert your rights during a stop.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== GALLERY ===================== -->
+<section id="gallery">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Screens</div>
+      <h2>Designed to look as good as it works</h2>
+    </div>
+  </div>
+  <div class="wrap"><div class="gallery reveal">
+    <img src="assets/shots/04_dashboard_protools.png" alt="Dashboard" loading="lazy" />
+    <img src="assets/shots/01_drive_score.png" alt="Drive Score" loading="lazy" />
+    <img src="assets/shots/02_emergency_sos.png" alt="Emergency SOS" loading="lazy" />
+    <img src="assets/shots/05_parking_sentry.png" alt="Parking Sentry" loading="lazy" />
+    <img src="assets/shots/06_telemetry_graph.png" alt="Telemetry graph" loading="lazy" />
+    <img src="assets/shots/03_evidence_timeline.png" alt="Evidence timeline" loading="lazy" />
+    <img src="assets/shots/08_collision_detect.png" alt="Collision detection" loading="lazy" />
+    <img src="assets/shots/09_ar_hud.png" alt="AR HUD" loading="lazy" />
+    <img src="assets/shots/10_achievements.png" alt="Achievements" loading="lazy" />
+    <img src="assets/shots/07_trip_history.png" alt="Trip history" loading="lazy" />
+  </div></div>
+</section>
+
+<!-- ===================== PRICING ===================== -->
+<section id="pricing">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Simple &amp; fair</div>
+      <h2>Start as VIP — free for 7 days</h2>
+      <p>No ads, ever. Every new install unlocks everything for a week, then settles into a generous free tier.</p>
+    </div>
+    <div class="plans">
+      <div class="plan reveal">
+        <h3>Free</h3>
+        <div class="price">$0</div>
+        <ul>
+          <li>Dashcam, GPS &amp; speed HUD</li>
+          <li>Drive Score &amp; risk halo</li>
+          <li>Rights Shield (TTS)</li>
+          <li>30-min trips • 3 incidents/day</li>
+        </ul>
+      </div>
+      <div class="plan pro reveal">
+        <div class="ribbon">7-DAY FREE TRIAL</div>
+        <h3>Defender Pro</h3>
+        <div class="price">$4.99<small>/mo</small></div>
+        <ul>
+          <li>Unlimited trips &amp; incidents</li>
+          <li>Collision detect, SOS &amp; Sentry</li>
+          <li>AR HUD &amp; live telemetry</li>
+          <li>Evidence ZIP export &amp; badges</li>
+          <li>No ads — ever</li>
+        </ul>
+      </div>
+    </div>
+    <div class="trial-banner reveal">🎁 Every new install starts with a <b>7-day free VIP trial</b> — full access, no commitment.</div>
+  </div>
+</section>
+
+<!-- ===================== PRIVACY ===================== -->
+<section id="privacy">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Privacy by design</div>
+      <h2>Your evidence never leaves your phone</h2>
+    </div>
+    <div class="privacy">
+      <div class="fcard reveal"><div class="ic" style="color:#22c55e">📵</div><h3>No cloud</h3><p>Recordings, GPS logs and incidents are stored only in the app's private storage. Nothing is uploaded to any server.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#38bdf8">🔒</div><h3>Backup-excluded</h3><p>Sensitive evidence is excluded from Google cloud backup, so it can't sync off your device.</p></div>
+      <div class="fcard reveal"><div class="ic" style="color:#fbbf24">🚫</div><h3>No ads, no tracking</h3><p>Subscription-only. No advertising SDK and no advertising ID is ever collected.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="" /><span><b>Good Drivers Defender</b><span>AI Dashcam &amp; Driving Coach</span></span></a>
+    <div style="margin-top:18px"><a class="pill" href="#pricing"><span class="dot"></span>Coming soon to Google Play</a></div>
+    <p class="made">A portfolio project • design &amp; build by <a class="link" href="https://photon-bounce.com">Photon Bounce</a></p>
+    <p class="made" style="opacity:.6">© <span id="yr"></span> Good Drivers Defender. Recording your own drive is legal; audio-recording consent laws vary by jurisdiction.</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
