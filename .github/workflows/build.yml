@@ -12,6 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      # Surface signing secrets at JOB level so the release-AAB steps' `if:`
+      # conditions can see them. A step's own `env:` is NOT in scope for that
+      # same step's `if` expression, so the previous step-scoped gating always
+      # evaluated to '' and silently skipped the signed release build.
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
 
     steps:
       - name: Checkout
