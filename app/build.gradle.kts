@@ -55,7 +55,11 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      // R8 code + resource shrinking for a smaller release AAB. Keep rules for the
+      // serialization/reflection libraries live in proguard-rules.pro. NOTE: smoke-test
+      // a release build on a device (internal testing track) before production rollout.
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       // Only assign signing config when a keystore is actually available (CI or local)
       val hasKeystore = keyPropertiesFile.exists() || System.getenv("STORE_PASSWORD") != null
