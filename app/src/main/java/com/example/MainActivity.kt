@@ -97,6 +97,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Re-validate subscription on every resume (handles side-loads and cancellations)
         if (::billingManager.isInitialized) billingManager.refreshPurchases()
+        // Re-evaluate the 7-day VIP trial window in case it lapsed while the app was open
+        if (::viewModel.isInitialized) viewModel.refreshTrial()
     }
 
     override fun onDestroy() {

@@ -56,6 +56,8 @@ fun PaywallScreen(
     onDismiss: () -> Unit
 ) {
     val subState by viewModel.subscriptionState.collectAsState()
+    val trialActive by viewModel.trialActive.collectAsState()
+    val trialDaysLeft by viewModel.trialDaysRemaining.collectAsState()
 
     // Real, localized prices from Google Play (falls back to defaults until the
     // product details load). Reading subState above means this recomposes — and
@@ -190,6 +192,42 @@ fun PaywallScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
+
+            // ── FREE VIP TRIAL BANNER (new installs, not yet subscribed) ─────
+            if (trialActive && !subState.isPro) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .background(Color(0xFF143020), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF22C55E), RoundedCornerShape(12.dp))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CardGiftcard,
+                        contentDescription = null,
+                        tint = Color(0xFF22C55E),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Free VIP trial active",
+                            color = Color(0xFF22C55E),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "$trialDaysLeft ${if (trialDaysLeft == 1) "day" else "days"} left — every feature unlocked. Subscribe any time to keep VIP after it ends.",
+                            color = Color(0xFF86EFAC),
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // ── PLAN SELECTOR (only show if not Pro) ─────────────────────────
             if (!subState.isPro) {

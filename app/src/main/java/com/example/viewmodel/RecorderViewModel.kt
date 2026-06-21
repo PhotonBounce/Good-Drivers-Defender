@@ -16,6 +16,7 @@ import android.speech.tts.TextToSpeech
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AdaptiveScoreEngine
+import com.example.data.TrialManager
 import com.example.data.EvidenceRepository
 import com.example.data.IncidentRecord
 import com.example.data.BillingManager
@@ -302,20 +303,35 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         speakText(if (_debugProOverride.value) "Premium Pro Active" else "Premium Pro Inactive")
     }
 
+    // ─── 7-day free VIP trial ────────────────────────────────────────────────
+    // Every new install gets full VIP/Pro access for its first 7 days; afterwards
+    // it drops to the limited free tier unless a subscription is active.
+    private val trialManager = TrialManager(application).also { it.ensureStarted() }
+    private val _trialActive = MutableStateFlow(trialManager.isInTrial())
+    val trialActive: StateFlow<Boolean> = _trialActive.asStateFlow()
+    private val _trialDaysRemaining = MutableStateFlow(trialManager.daysRemaining())
+    val trialDaysRemaining: StateFlow<Int> = _trialDaysRemaining.asStateFlow()
+
+    /** Re-evaluate the trial window (call on app resume in case it lapsed while open). */
+    fun refreshTrial() {
+        _trialActive.value = trialManager.isInTrial()
+        _trialDaysRemaining.value = trialManager.daysRemaining()
+    }
+
     // Pro entitlement = a real, acknowledged Google Play subscription (mirrored from
-    // BillingManager). The debug override only applies in debug builds.
-    // Use this synchronous getter from event handlers (onClick etc.) where the live value
-    // is read at the moment of the action.
+    // BillingManager) OR an active 7-day VIP trial. The debug override only applies in
+    // debug builds. Use this synchronous getter from event handlers (onClick etc.) where
+    // the live value is read at the moment of the action.
     val isPro: Boolean get() =
-        _subscriptionState.value.isPro || (BuildConfig.DEBUG && _debugProOverride.value)
+        _subscriptionState.value.isPro || trialManager.isInTrial() || (BuildConfig.DEBUG && _debugProOverride.value)
 
     // Observable equivalent of [isPro] for Composables: reads taken DURING composition must
     // collect this so gated UI (e.g. the evidence locker) recomposes when Pro status changes
     // mid-session, rather than reading the non-observable getter once.
     val isProFlow: StateFlow<Boolean> =
-        combine(_subscriptionState, _debugProOverride) { sub, dbg ->
-            sub.isPro || (BuildConfig.DEBUG && dbg)
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+        combine(_subscriptionState, _debugProOverride, _trialActive) { sub, dbg, trial ->
+            sub.isPro || trial || (BuildConfig.DEBUG && dbg)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, _subscriptionState.value.isPro || _trialActive.value)
 
     private val _speedWarningThreshold = MutableStateFlow(8)
     val speedWarningThreshold: StateFlow<Int> = _speedWarningThreshold.asStateFlow()
