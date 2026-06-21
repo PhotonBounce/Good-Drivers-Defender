@@ -9,11 +9,12 @@ _Updated for v2.0 (versionCode 4). Last pass: 2026-06-16._
 
 ## 1. Pre-upload blockers
 
-- [ ] **[YOU] Real AdMob IDs.** In [AdMob](https://apps.admob.com): create the app, then a Banner and an
-  Interstitial ad unit. Replace the three sample IDs:
-  - `AndroidManifest.xml` → `com.google.android.gms.ads.APPLICATION_ID` (currently `ca-app-pub-3940256099942544~3347511713`)
-  - `AdManager.kt` → `BANNER_AD_UNIT_ID`, `INTERSTITIAL_AD_UNIT_ID`
-  - Best practice: keep the **test** IDs for debug builds and inject **real** IDs only for release.
+- [x] **Monetization: subscription-only, no ads.** AdMob removed entirely. The app is a limited
+  free tier + a Defender Pro subscription, and **every new install gets a 7-day free VIP trial**
+  (`TrialManager`). No ad IDs to configure.
+- [ ] **[YOU] Create the subscription products in Play Console.** Add the two subscriptions the
+  billing code expects (`defender_pro_monthly`, `defender_pro_annual`) under Monetize → Subscriptions,
+  including the price and any intro offer.
 - [ ] **[YOU] Upload keystore + signing.** Create it once and keep it safe (losing it = you can never update the app):
   ```bash
   keytool -genkeypair -v -keystore my-upload-key.jks -alias upload \
@@ -46,10 +47,11 @@ Based on the manifest + code, declare:
 | **Precise location** (GPS) | Yes | No | App functionality (trip/incident logging) | Stored on-device |
 | **Microphone / audio** | Yes (in recordings) | No | App functionality (dashcam audio) | On-device |
 | **Photos/Videos** (camera) | Yes | No | App functionality (dashcam video evidence) | On-device |
-| **Device or other IDs** (advertising ID) | Yes | Yes | Advertising (AdMob) | Via Google Mobile Ads SDK |
+| **Purchase history** (subscription) | Yes | No | App functionality (entitlement) | Handled by Google Play Billing |
 | **App activity / crash** | Only if you add Firebase/analytics | — | Analytics | Currently none in code |
 
-- **Encryption in transit:** Yes (ads SDK uses HTTPS).
+- **No advertising ID** is collected — ads were removed; the app is subscription-only.
+- **Encryption in transit:** Yes (Google Play Billing uses HTTPS).
 - **Users can request deletion:** describe how (data is local; uninstall removes it).
 - ⚠️ Your **Data Safety answers must match runtime behavior** — that's why the deceptive "telemetry" copy
   (QA item C3) must be fixed before you submit.
@@ -149,11 +151,14 @@ Play review friction.
 - [x] **Audio-consent advisory** — permission onboarding now warns that
   audio-recording consent laws vary by jurisdiction and the user is responsible
   for compliance (addresses the §6 legal note, without claiming to give legal advice).
+- [x] **Subscription-only, no ads** — AdMob removed; limited free tier + Defender Pro
+  subscription, with a **7-day free VIP trial** for every new install (`TrialManager`).
+- [x] **Marketing claims softened** — dropped "legally certified" / "court-ready" /
+  "civil suit" / "certified evidence" phrasing in-app and in the store listing.
+- [x] **R8 enabled** for release (minify + resource shrinking) with keep rules.
 
 ### [YOU must do]
-- [ ] Add real AdMob IDs (replace `ca-app-pub-3940256099942544` test IDs)
-- [ ] Decide on interstitial ads — `AdManager.showInterstitial()` exists but is
-  never called, so no interstitial revenue. Wire it (frequency-capped) if wanted.
+- [ ] Create the `defender_pro_monthly` + `defender_pro_annual` subscriptions in Play Console
 - [ ] Create upload keystore + add GitHub repo secrets → CI produces signed AAB
 - [ ] Upload `web/` (index.html, style.css, privacy.html) to your host
   (privacy policy will live at https://photon-bounce.com/privacy.html)
@@ -162,5 +167,4 @@ Play review friction.
 - [ ] Submit FGS + permissions justification (short demo video of the notification)
 - [ ] Complete IARC content rating questionnaire
 - [ ] Upload assets from `play_assets/` to Play Console
-- [ ] (Optional) Soften "court-ready evidence" marketing claims app-wide
-- [ ] Test on internal testing track on a real device before production rollout
+- [ ] **Smoke-test a release (R8) build on a real device** (internal testing track) before production

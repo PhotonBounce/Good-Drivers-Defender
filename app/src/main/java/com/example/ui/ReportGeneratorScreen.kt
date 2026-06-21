@@ -82,7 +82,7 @@ fun ReportGeneratorScreen(
                     )
 
                     Text(
-                        text = "Drafting legally certified small claims complaints and police outlines is a premium Defender Pro feature. Get unlimited access today.",
+                        text = "Drafting small claims complaint drafts and police report outlines is a premium Defender Pro feature. Get unlimited access today.",
                         color = Color.LightGray,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center,
@@ -351,7 +351,7 @@ fun ReportGeneratorScreen(
         Button(
             onClick = {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newPlainText("Civil Suit Draft Evidence", legalDraftText)
+                val clip = ClipData.newPlainText("Incident Report Draft", legalDraftText)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(context, "Complaint copied! Ready to paste and file.", Toast.LENGTH_LONG).show()
             },

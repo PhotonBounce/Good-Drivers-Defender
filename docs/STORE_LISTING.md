@@ -20,7 +20,7 @@ Dashcam + evidence recorder: GPS, video, collision detection & emergency SOS.
 Good Drivers Defender turns your Android phone into a professional dashcam and driving-safety recorder — no extra hardware needed.
 
 ── WHAT IT DOES ──────────────────────────────────
-Start a recording session and the app watches your drive. GPS-stamped incident records, timestamped snapshots and video clips, and ambient audio are saved directly on your device so you always have a clear, court-ready evidence log of what happened on the road.
+Start a recording session and the app watches your drive. GPS-stamped incident records, timestamped snapshots and video clips, and ambient audio are saved directly on your device so you always have a clear, timestamped evidence log of what happened on the road.
 
 ── KEY FEATURES ──────────────────────────────────
 
@@ -59,7 +59,7 @@ Recordings, GPS logs, and incident records are stored locally. Nothing is upload
 
 ── FREE vs PRO ───────────────────────────────────
 Free: dashcam recording, basic incident logging (3/day), GPS tagging, evidence timeline, drive score.
-Defender Pro (subscription): unlimited incidents, Collision Detection, Emergency SOS, Parking Sentry, AR HUD, Live Telemetry, Evidence ZIP export, Achievement badges, no ads.
+Defender Pro (subscription): unlimited incidents, unlimited trip length, Collision Detection, Emergency SOS, Parking Sentry, AR HUD, Live Telemetry, Evidence ZIP export, and Achievement badges. Every new install starts with a 7-day free VIP trial — no ads, ever.
 
 ── PERMISSIONS ───────────────────────────────────
 Camera, Microphone, and Location are required for the dashcam to function. A notification is shown whenever background recording is active so you always know it's running.
@@ -96,9 +96,9 @@ Auto & Vehicles
 | Precise location | ✅ | ❌ | App functionality (GPS logging) |
 | Photos/videos | ✅ | ❌ | App functionality (dashcam evidence) |
 | Audio | ✅ | ❌ | App functionality (witness audio) |
-| Device/advertising ID | ✅ (free tier) | ✅ Google AdMob | Advertising |
+| Purchase history | ✅ | ❌ | App functionality (subscription entitlement) |
 
-Encryption in transit: Yes (AdMob SDK uses HTTPS)
+Encryption in transit: Yes (Google Play Billing uses HTTPS). No advertising ID is collected.
 Users can request deletion: Yes (in-app delete + uninstall removes all local data)
 
 ---
