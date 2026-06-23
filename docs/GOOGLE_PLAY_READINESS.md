@@ -156,10 +156,22 @@ Play review friction.
 - [x] **Marketing claims softened** — dropped "legally certified" / "court-ready" /
   "civil suit" / "certified evidence" phrasing in-app and in the store listing.
 - [x] **R8 enabled** for release (minify + resource shrinking) with keep rules.
+- [x] **R8 validated in CI** — every run now builds the release bundle (`bundleRelease`),
+  so the optimized release pipeline is exercised continuously (signed when secrets are
+  present, unsigned otherwise), not only once secrets exist.
+- [x] **Manifest / SDK audit passed** — targetSdk 35 (meets Play's current floor),
+  versionCode 4 / versionName 2.0, final applicationId `com.aistudio.driverrecorder.gpxrt`;
+  no `QUERY_ALL_PACKAGES` / `MANAGE_EXTERNAL_STORAGE` / background-location; storage perms
+  capped (`WRITE…`≤28, `READ…`≤32); foreground service declares `location|microphone` types
+  with matching FGS permissions; adaptive launcher icons present.
 
 ### [YOU must do]
 - [ ] Create the `defender_pro_monthly` + `defender_pro_annual` subscriptions in Play Console
-- [ ] Create upload keystore + add GitHub repo secrets → CI produces signed AAB
+- [ ] **Fix the signing secrets** — CI's signed-AAB step is wired correctly, but the four
+  secrets are currently resolving **EMPTY** in CI (they render blank, not `***`). Re-add them
+  as **Repository** secrets (Settings → Secrets and variables → Actions → *Repository secrets*
+  tab, **not** Environment), with exact case-sensitive names: `KEYSTORE_BASE64`,
+  `STORE_PASSWORD`, `KEY_PASSWORD`, `KEY_ALIAS`. CI then uploads a SIGNED `release-aab`.
 - [ ] Upload `web/` (index.html, style.css, privacy.html) to your host
   (privacy policy will live at https://photon-bounce.com/privacy.html)
 - [ ] Paste privacy policy URL into Play Console

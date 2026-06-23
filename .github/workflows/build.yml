@@ -46,19 +46,17 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
-      # ── Release AAB (signed with upload keystore from secrets) ───────────
+      # ── Release AAB ──────────────────────────────────────────────────────
+      # Always build the release bundle so R8 (minify + resource shrinking) is
+      # exercised on every run. It is SIGNED with the upload keystore when the
+      # signing secrets are present, and built UNSIGNED otherwise (R8 is still
+      # validated; an unsigned AAB just cannot be uploaded to Play).
       - name: Decode keystore
         if: ${{ env.KEYSTORE_BASE64 != '' }}
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
 
       - name: Write key.properties
         if: ${{ env.STORE_PASSWORD != '' }}
-        env:
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           cat > key.properties <<EOF
           storeFile=../my-upload-key.jks
@@ -67,16 +65,18 @@ jobs:
           keyPassword=${KEY_PASSWORD}
           EOF
 
-      - name: Build release AAB
-        if: ${{ env.STORE_PASSWORD != '' }}
-        env:
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      - name: Build release bundle (R8)
         run: ./gradlew bundleRelease --no-daemon
 
+      - name: Report signing status
+        run: |
+          if [ -n "${STORE_PASSWORD}" ]; then
+            echo "::notice title=Release AAB signed::Built and signed with the upload keystore — ready for Play upload."
+          else
+            echo "::warning title=Release AAB unsigned::R8 release build succeeded but the AAB is UNSIGNED (signing secrets not set), so it cannot be uploaded to Play. Add repository secrets KEYSTORE_BASE64, STORE_PASSWORD, KEY_PASSWORD, KEY_ALIAS."
+          fi
+
       - name: Upload release AAB
-        if: ${{ env.STORE_PASSWORD != '' }}
-        env:
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         uses: actions/upload-artifact@v4
         with:
           name: release-aab
