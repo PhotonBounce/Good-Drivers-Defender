@@ -325,6 +325,42 @@ footer a.link { color: var(--cyan); }
 
 @keyframes pulse { 0%,100%{ transform:scale(1); opacity:1;} 50%{ transform:scale(1.5); opacity:.5;} }
 
+/* ---------- scroll progress bar ---------- */
+.scroll-progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 60;
+  background: linear-gradient(90deg, var(--cyan), var(--green), var(--amber));
+  box-shadow: 0 0 12px rgba(56,189,248,.6); transition: width .1s linear;
+}
+.nav-links a.active { color: var(--text); }
+
+/* ---------- how it works ---------- */
+.steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+@media (max-width: 820px){ .steps { grid-template-columns: 1fr; } }
+.step { position: relative; padding: 28px 24px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--stroke); overflow: hidden; }
+.step::after { content:""; position:absolute; right:-30px; top:-30px; width:120px; height:120px; border-radius:50%; background: radial-gradient(circle, rgba(56,189,248,.12), transparent 70%); }
+.step-n { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; font-weight: 900; font-size: 20px; margin-bottom: 14px; color: #04130c; background: linear-gradient(120deg, var(--cyan), var(--green)); }
+.step h3 { font-size: 18px; margin-bottom: 8px; }
+.step p { color: var(--muted); font-size: 14px; }
+
+/* ---------- tech chips ---------- */
+.tech-grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.tech { padding: 11px 18px; border-radius: 999px; border: 1px solid var(--stroke); background: var(--panel); font-weight: 700; font-size: 14px; color: #cbd5e1; transition: transform .2s, border-color .2s, color .2s; }
+.tech:hover { transform: translateY(-3px); border-color: rgba(56,189,248,.5); color: #fff; }
+
+/* ---------- faq ---------- */
+.faq { max-width: 760px; margin: 0 auto; display: grid; gap: 12px; }
+.faq details { border: 1px solid var(--stroke); border-radius: 14px; background: var(--panel); overflow: hidden; }
+.faq summary { cursor: pointer; padding: 18px 20px; font-weight: 700; font-size: 16px; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--cyan); font-weight: 900; font-size: 22px; transition: transform .2s; }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { padding: 0 20px 18px; color: var(--muted); font-size: 14.5px; }
+
+/* ---------- notify band ---------- */
+.notify-band { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding: 38px 40px; border-radius: 24px; border: 1px solid rgba(34,197,94,.4); background: linear-gradient(120deg, rgba(56,189,248,.10), rgba(34,197,94,.08)); }
+.notify-band h2 { font-size: 28px; }
+.notify-band p { color: var(--muted); margin-top: 6px; }
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
   .reveal { opacity:1; transform:none; }

@@ -115,4 +115,37 @@
       phone.style.transform = "perspective(1100px) rotateY(0) rotateX(0)";
     });
   }
+
+  /* ---- scroll progress bar ---- */
+  var prog = document.getElementById("progress");
+  function updateProgress() {
+    var h = document.documentElement;
+    var max = h.scrollHeight - h.clientHeight;
+    var p = max > 0 ? (window.pageYOffset || h.scrollTop) / max : 0;
+    if (prog) prog.style.width = (Math.min(1, Math.max(0, p)) * 100).toFixed(2) + "%";
+  }
+  window.addEventListener("scroll", updateProgress, { passive: true });
+  window.addEventListener("resize", updateProgress, { passive: true });
+  updateProgress();
+
+  /* ---- active nav-link highlighting ---- */
+  var navMap = {};
+  [].slice.call(document.querySelectorAll('.nav-links a[href^="#"]')).forEach(function (a) {
+    navMap[a.getAttribute("href").slice(1)] = a;
+  });
+  if ("IntersectionObserver" in window) {
+    var navIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        var a = navMap[e.target.id];
+        if (a && e.isIntersecting) {
+          Object.keys(navMap).forEach(function (k) { navMap[k].classList.remove("active"); });
+          a.classList.add("active");
+        }
+      });
+    }, { rootMargin: "-45% 0px -50% 0px" });
+    ["demo", "intel", "features", "pricing"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) navIO.observe(el);
+    });
+  }
 })();

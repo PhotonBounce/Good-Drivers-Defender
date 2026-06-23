@@ -10,12 +10,20 @@
 <meta property="og:image" content="assets/feature.png" />
 <meta name="theme-color" content="#05060f" />
 <link rel="icon" href="assets/icon.png" />
+<link rel="apple-touch-icon" href="assets/icon.png" />
+<link rel="manifest" href="site.webmanifest" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Good Drivers Defender — AI Dashcam & Driving Coach" />
+<meta name="twitter:description" content="Adaptive driving score, real-time risk intelligence, on-device evidence. Coming soon to Google Play." />
+<meta name="twitter:image" content="assets/feature.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+<div class="scroll-progress" id="progress"></div>
 
 <!-- animated parallax background -->
 <div class="bg-wrap">
@@ -196,6 +204,22 @@
   </div>
 </section>
 
+<!-- ===================== HOW IT WORKS ===================== -->
+<section id="how">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">How it works</div>
+      <h2>Protection in three taps</h2>
+      <p>No account, no setup wizard, no cloud. Mount your phone and drive.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><div class="step-n">1</div><h3>Start a trip</h3><p>Tap START TRIP — or let auto-motion detection arm recording the moment you pull away. Road video, audio, GPS and g-force begin logging instantly.</p></div>
+      <div class="step reveal"><div class="step-n">2</div><h3>Drive — it watches</h3><p>The risk halo reads speed, braking and cornering in real time. Tap LOG INCIDENT to bookmark a moment, or let collision detection flag hard impacts for you.</p></div>
+      <div class="step reveal"><div class="step-n">3</div><h3>Review &amp; export</h3><p>Get a Drive Score with coaching, browse your evidence locker, and export a timestamped ZIP bundle — all stored privately on your device.</p></div>
+    </div>
+  </div>
+</section>
+
 <!-- ===================== FEATURES ===================== -->
 <section id="features">
   <div class="wrap">
@@ -238,6 +262,31 @@
     <img src="assets/shots/10_achievements.png" alt="Achievements" loading="lazy" />
     <img src="assets/shots/07_trip_history.png" alt="Trip history" loading="lazy" />
   </div></div>
+</section>
+
+<!-- ===================== BUILT WITH ===================== -->
+<section id="tech">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Under the hood</div>
+      <h2>Engineered like a flagship</h2>
+      <p>100% native Android, modern stack, fully offline — a portfolio piece as much as a product.</p>
+    </div>
+    <div class="tech-grid reveal">
+      <span class="tech">Kotlin</span>
+      <span class="tech">Jetpack Compose</span>
+      <span class="tech">Material 3</span>
+      <span class="tech">CameraX</span>
+      <span class="tech">Room</span>
+      <span class="tech">Coroutines / Flow</span>
+      <span class="tech">Play Billing</span>
+      <span class="tech">Fused Location</span>
+      <span class="tech">MediaStore</span>
+      <span class="tech">Foreground Service</span>
+      <span class="tech">TTS / TalkBack</span>
+      <span class="tech">R8 · AAB</span>
+    </div>
+  </div>
 </section>
 
 <!-- ===================== PRICING ===================== -->
@@ -287,6 +336,37 @@
       <div class="fcard reveal"><div class="ic" style="color:#22c55e">📵</div><h3>No cloud</h3><p>Recordings, GPS logs and incidents are stored only in the app's private storage. Nothing is uploaded to any server.</p></div>
       <div class="fcard reveal"><div class="ic" style="color:#38bdf8">🔒</div><h3>Backup-excluded</h3><p>Sensitive evidence is excluded from Google cloud backup, so it can't sync off your device.</p></div>
       <div class="fcard reveal"><div class="ic" style="color:#fbbf24">🚫</div><h3>No ads, no tracking</h3><p>Subscription-only. No advertising SDK and no advertising ID is ever collected.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FAQ ===================== -->
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">Questions</div>
+      <h2>Good to know</h2>
+    </div>
+    <div class="faq reveal">
+      <details><summary>When is it launching?</summary><p>It's in final pre-launch testing and coming soon to Google Play. This page is a preview of what's shipping.</p></details>
+      <details><summary>Does it really work without the internet?</summary><p>Yes. Recording, scoring, GPS logging and evidence storage are 100% on-device. The only network use is Google Play for the subscription.</p></details>
+      <details><summary>Are there ads?</summary><p>Never. The app is subscription-only with a generous free tier — no advertising SDK and no advertising ID.</p></details>
+      <details><summary>How does the free trial work?</summary><p>Every new install gets full VIP/Pro access free for 7 days. After that you keep a capable free tier, or subscribe to stay VIP.</p></details>
+      <details><summary>Where is my footage stored?</summary><p>In the app's private storage on your device, and excluded from Google cloud backup. Nothing is uploaded to us.</p></details>
+      <details><summary>Which devices are supported?</summary><p>Android phones (Android 8.0 and up). A mount with a clear view of the road works best.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== NOTIFY BAND ===================== -->
+<section id="notify">
+  <div class="wrap">
+    <div class="notify-band reveal">
+      <div>
+        <h2>Be first in line</h2>
+        <p>Get a ping the day it lands on Google Play.</p>
+      </div>
+      <a class="btn btn-primary" href="mailto:hello@photon-bounce.com?subject=Notify%20me%20%E2%80%94%20Good%20Drivers%20Defender">Notify me →</a>
     </div>
   </div>
 </section>
