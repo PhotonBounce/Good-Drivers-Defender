@@ -61,8 +61,11 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // Only assign signing config when a keystore is actually available (CI or local)
-      val hasKeystore = keyPropertiesFile.exists() || System.getenv("STORE_PASSWORD") != null
+      // Only assign signing config when a keystore is actually available (CI or local).
+      // Note: CI surfaces signing secrets as job-level env, so an *unset* secret arrives as
+      // an empty string (not null) — isNullOrEmpty() treats that as "no keystore" so the
+      // release still builds UNSIGNED (and validates R8) instead of failing validateSigningRelease.
+      val hasKeystore = keyPropertiesFile.exists() || !System.getenv("STORE_PASSWORD").isNullOrEmpty()
       if (hasKeystore) {
         signingConfig = signingConfigs.getByName("release")
       }
