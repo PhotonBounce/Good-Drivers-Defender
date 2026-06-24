@@ -3,13 +3,16 @@ name: Deploy site to GitHub Pages
 # Publishes the presentation microsite at the site root and the standalone
 # privacy policy at /privacy.html (the URL Google Play needs).
 
+# Publishes the presentation microsite at the site root and the standalone
+# privacy policy at /privacy.html.
+#
+# PREREQUISITE: GitHub Pages must be enabled (Settings → Pages → Source:
+# "GitHub Actions"). For a PRIVATE repo that needs a paid plan (Pro/Team) OR
+# making the repo public; the github-pages environment also defaults to the
+# DEFAULT branch only. Until then this is manual-only (workflow_dispatch) so it
+# never fails CI on pushes. The privacy policy is also bundled into microsite/
+# for hosting on your own server, which needs none of the above.
 on:
-  push:
-    branches: [ "main", "claude/sharp-ramanujan-sszvfb" ]
-    paths:
-      - "microsite/**"
-      - "web/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:

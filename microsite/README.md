@@ -47,3 +47,11 @@ assets/
   (search `play.google.com` is not present here; the CTA pills point to `#pricing`).
 - Everything renders offline except the web fonts; if the host blocks the font CDN it
   gracefully falls back to system fonts.
+
+## Privacy policy (for Google Play)
+
+`privacy.html` (+ `style.css`) is bundled here so a single upload serves both the site and the
+policy. After upload it is reachable at `<your-microsite-path>/privacy.html` — paste that exact,
+working URL into Play Console → App content → Privacy policy. **Verify it loads (HTTP 200, not 403)
+in a browser before submitting** — an unreachable URL is the most common cause of Google's
+"Invalid Privacy policy" rejection.
