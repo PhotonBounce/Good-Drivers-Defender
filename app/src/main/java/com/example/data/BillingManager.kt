@@ -190,7 +190,9 @@ class BillingManager(
             ?.firstOrNull()
             ?.pricingPhases
             ?.pricingPhaseList
-            ?.firstOrNull()
+            // Use the LAST phase = the recurring base price. firstOrNull() would show
+            // the $0 free-trial / intro phase as "the price" when an offer is configured.
+            ?.lastOrNull()
             ?.formattedPrice
             ?: "$4.99"
     }
@@ -201,7 +203,7 @@ class BillingManager(
             ?.firstOrNull()
             ?.pricingPhases
             ?.pricingPhaseList
-            ?.firstOrNull()
+            ?.lastOrNull()
             ?.formattedPrice
             ?: "$34.99"
     }

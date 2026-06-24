@@ -49,21 +49,32 @@ class DefenderService : Service() {
         if (action == "START") {
             acquireWakeLock()
             val notification = buildNotification()
-            
-            if (Build.VERSION.SDK_INT >= 34) {
-                // Use location|microphone types - compliant with standard Google Play policies
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                )
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
+            try {
+                if (Build.VERSION.SDK_INT >= 34) {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                    )
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+            } catch (e: Exception) {
+                // Permission revoked or FGS restriction — stop safely instead of crashing
+                android.util.Log.e("DefenderService", "startForeground failed: ${e.message}")
+                releaseWakeLock()
+                stopSelf()
+                return START_NOT_STICKY
             }
         } else if (action == "STOP") {
             releaseWakeLock()
-            stopForeground(true)
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                stopForeground(true)
+            }
             stopSelf()
         }
         return START_STICKY
@@ -76,7 +87,7 @@ class DefenderService : Service() {
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "GoodDriversDefender::BackgroundProtectionWakeLock"
             ).apply {
-                acquire()
+                acquire(60 * 60 * 1000L) // 1h safety cap — renewed by next START if still recording
             }
         }
     }
@@ -104,8 +115,10 @@ class DefenderService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Defender Pro Shield Engaged")
-            .setContentText("Telemetry secure against lockscreens & accidental button presses.")
+            // Foreground-service notification must honestly disclose active data access
+            // (Play policy for FGS type location|microphone). Tell the user recording is on.
+            .setContentTitle("Recording active — Good Drivers Defender")
+            .setContentText("GPS, camera & microphone are in use to record your drive. Tap to open.")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -118,7 +131,7 @@ class DefenderService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
-                "Good Drivers' Defender Service",
+                "Recording Service",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
             val manager = getSystemService(NotificationManager::class.java)

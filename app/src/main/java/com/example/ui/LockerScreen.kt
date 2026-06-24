@@ -168,7 +168,9 @@ fun LockerScreen(
                 )
             }
 
-            val isPro = viewModel.isPro
+            // Observe so the locker reveals all incidents the moment the user upgrades,
+            // without needing a navigation event to force recomposition.
+            val isPro by viewModel.isProFlow.collectAsState()
             val visibleIncidents = if (isPro) incidents else incidents.take(1)
 
             LazyColumn(
@@ -295,8 +297,8 @@ fun LockerScreen(
                                                                 val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                                                                     type = "application/zip"
                                                                     putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                                                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Good Drivers' Defender - Certified Evidence Package")
-                                                                    putExtra(android.content.Intent.EXTRA_TEXT, "Enclosed is a formal Good Drivers' Defender evidence bundle containing certified telemetries and camera manifests.")
+                                                                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Good Drivers Defender - Evidence Package")
+                                                                    putExtra(android.content.Intent.EXTRA_TEXT, "Enclosed is a Good Drivers Defender evidence bundle containing timestamped telemetry and camera manifests.")
                                                                     addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                                                 }
                                                                 context.startActivity(android.content.Intent.createChooser(shareIntent, "Deliver Evidence ZIP"))
@@ -802,7 +804,7 @@ fun LockerScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Upgrade to Pro to unlock remaining ${incidents.size - 1} trip sessions, certified ZIP packaging, and video/audio downloads.",
+                                    text = "Upgrade to Pro to unlock remaining ${incidents.size - 1} trip sessions, ZIP evidence packaging, and video/audio downloads.",
                                     color = Color.LightGray,
                                     fontSize = 10.sp,
                                     textAlign = TextAlign.Center,

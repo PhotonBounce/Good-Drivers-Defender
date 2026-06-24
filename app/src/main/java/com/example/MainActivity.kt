@@ -32,6 +32,15 @@ import com.example.ui.ReportGeneratorScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.SplashScreen
 import com.example.ui.VideoGalleryScreen
+import com.example.ui.TripScoreScreen
+import com.example.ui.EmergencySosScreen
+import com.example.ui.EvidenceTimelineScreen
+import com.example.ui.ParkingSentryScreen
+import com.example.ui.TelemetryGraphScreen
+import com.example.ui.TripHistoryScreen
+import com.example.ui.CollisionDetectScreen
+import com.example.ui.HudProjectionScreen
+import com.example.ui.AchievementsScreen
 import com.example.viewmodel.RecorderViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -88,6 +97,8 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Re-validate subscription on every resume (handles side-loads and cancellations)
         if (::billingManager.isInitialized) billingManager.refreshPurchases()
+        // Re-evaluate the 7-day VIP trial window in case it lapsed while the app was open
+        if (::viewModel.isInitialized) viewModel.refreshTrial()
     }
 
     override fun onDestroy() {
@@ -100,14 +111,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: ComponentActivity) {
     // Collect permissions needed for comprehensive driving telemetries
-    val diagnosticPermissionsState = rememberMultiplePermissionsState(
-        permissions = listOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.CAMERA
-        )
+    val basePerms = listOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.CAMERA
     )
+    val allPerms = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
+        basePerms + Manifest.permission.POST_NOTIFICATIONS else basePerms
+    val diagnosticPermissionsState = rememberMultiplePermissionsState(permissions = allPerms)
 
     var showOnboardingInfo by remember { mutableStateOf(!diagnosticPermissionsState.allPermissionsGranted) }
 
@@ -162,7 +174,7 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                             )
 
                             Text(
-                                text = "DRIVER RECORDERS & EVIDENCE ACTIVE",
+                                text = "GOOD DRIVERS DEFENDER",
                                 color = Color.White,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 16.sp,
@@ -170,7 +182,7 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                             )
 
                             Text(
-                                text = "This dedicated driver safety app tracks vehicle telemetry metrics relative to the current highway zone and logs sudden deceleration events to compile solid evidence packets for civil recovery claims or police reporting.",
+                                text = "This app records camera, microphone, and GPS to build timestamped evidence packets for road-safety incidents. All data stays on your device unless you choose to share it.",
                                 color = Color.LightGray,
                                 fontSize = 11.sp,
                                 textAlign = TextAlign.Center,
@@ -184,23 +196,38 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 horizontalAlignment = Alignment.Start
                             ) {
-                                Text("💡 CRITICAL STEPS FOR PROOF CHAIN:", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("PERMISSIONS REQUIRED:", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("GPS & WiFi Geo tracker logs speeds and counties", color = Color.White, fontSize = 10.sp)
+                                    Text("Location — logs GPS coordinates and speed at each incident", color = Color.White, fontSize = 10.sp)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Accelerometer registers evasive hard braking force", color = Color.White, fontSize = 10.sp)
+                                    Text("Camera — captures timestamped photo and video evidence", color = Color.White, fontSize = 10.sp)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Custom overlay timestamps are printed for chain of custody", color = Color.White, fontSize = 10.sp)
+                                    Text("Microphone — records ambient audio witness during sessions", color = Color.White, fontSize = 10.sp)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Notifications — shows an indicator while background recording is active", color = Color.White, fontSize = 10.sp)
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Note: audio-recording consent laws vary by state and country. " +
+                                    "You are responsible for complying with local laws when recording conversations.",
+                                color = Color(0xFFFBBF24),
+                                fontSize = 9.sp,
+                                lineHeight = 12.sp
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
 
                             Button(
                                 onClick = {
@@ -210,7 +237,7 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                             ) {
-                                Text("Engage Telemetries & Drive Sensors")
+                                Text("Grant Permissions & Start")
                             }
                         }
                     }
@@ -246,6 +273,33 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
             }
             "videos" -> {
                 VideoGalleryScreen(viewModel = viewModel)
+            }
+            "drive_score" -> {
+                TripScoreScreen(viewModel = viewModel)
+            }
+            "sos" -> {
+                EmergencySosScreen(viewModel = viewModel)
+            }
+            "timeline" -> {
+                EvidenceTimelineScreen(viewModel = viewModel)
+            }
+            "sentry" -> {
+                ParkingSentryScreen(viewModel = viewModel)
+            }
+            "telemetry" -> {
+                TelemetryGraphScreen(viewModel = viewModel)
+            }
+            "trips" -> {
+                TripHistoryScreen(viewModel = viewModel)
+            }
+            "impact" -> {
+                CollisionDetectScreen(viewModel = viewModel)
+            }
+            "hud" -> {
+                HudProjectionScreen(viewModel = viewModel)
+            }
+            "badges" -> {
+                AchievementsScreen(viewModel = viewModel)
             }
             else -> {
                 DashboardScreen(viewModel = viewModel)

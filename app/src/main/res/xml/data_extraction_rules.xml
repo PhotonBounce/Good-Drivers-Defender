@@ -1,19 +1,23 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Backup / transfer rules (Android 12+ / API 31+).
+
+   PRIVACY: This app holds sensitive driving evidence — incident video, audio,
+   snapshots (evidence_media/) and a GPS incident database (driver_recorder_db).
+   Auto Backup would otherwise upload all of it to the user's Google Drive, which
+   contradicts our "stored on-device / data is local" positioning and Data Safety
+   declaration, and would expose legal evidence to the cloud. We therefore exclude
+   that data from CLOUD backup, while still allowing local device-to-device
+   transfer so a user keeps their own evidence when they migrate phones.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="database" path="driver_recorder_db" />
+        <exclude domain="database" path="driver_recorder_db-wal" />
+        <exclude domain="database" path="driver_recorder_db-shm" />
+        <exclude domain="file" path="evidence_media" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Local, user-initiated migration keeps the user's own evidence. -->
     </device-transfer>
-    -->
 </data-extraction-rules>

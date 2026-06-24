@@ -15,9 +15,12 @@ import android.os.Looper
 import android.speech.tts.TextToSpeech
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.AdaptiveScoreEngine
+import com.example.data.TrialManager
 import com.example.data.EvidenceRepository
 import com.example.data.IncidentRecord
 import com.example.data.BillingManager
+import com.example.data.ScoreTrend
 import com.example.data.SubscriptionState
 import com.example.data.RecorderDatabase
 import com.example.data.TripPoint
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -46,6 +50,8 @@ import android.media.MediaRecorder
 import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collect
+import com.aistudio.driverrecorder.gpxrt.BuildConfig
 
 class RecorderViewModel(application: Application) : AndroidViewModel(application), SensorEventListener {
 
@@ -56,6 +62,13 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
 
     fun setBillingManager(manager: BillingManager) {
         billingManager = manager
+        // Mirror the real Google Play subscription state into our exposed state so that
+        // every isPro / subscriptionState consumer reflects actual, acknowledged purchases.
+        viewModelScope.launch {
+            manager.subscriptionState.collect { state ->
+                _subscriptionState.value = state
+            }
+        }
     }
 
     fun getBillingManager(): BillingManager? {
@@ -68,6 +81,22 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     // Ensure the internal directory exists when the ViewModel is created
     private val evidenceDir: File = File(getApplication<Application>().filesDir, "evidence_media").apply { if (!exists()) mkdirs() }
     private var activeRecording: Recording? = null
+
+    // ── Adaptive Q-Scoring Engine ────────────────────────────────────────────
+    private val adaptiveEngine = AdaptiveScoreEngine(application)
+    private val _riskLevel = MutableStateFlow(0f)
+    val riskLevel: StateFlow<Float> = _riskLevel.asStateFlow()
+    private val _scoreTrend = MutableStateFlow(ScoreTrend.STABLE)
+    val scoreTrend: StateFlow<ScoreTrend> = _scoreTrend.asStateFlow()
+    private val _adaptiveScore = MutableStateFlow(adaptiveEngine.getAdaptiveScore())
+    val adaptiveScore: StateFlow<Float> = _adaptiveScore.asStateFlow()
+    private val _recentTripScores = MutableStateFlow(adaptiveEngine.getRecentScores(5))
+    val recentTripScores: StateFlow<List<Int>> = _recentTripScores.asStateFlow()
+    private var sessionHardBrakeCount = 0
+    private var tripStartTimeMs = 0L
+    private var lastHardBrakeCountTime = 0L
+    // ────────────────────────────────────────────────────────────────────────
+
     private val _lastVideoFile = MutableStateFlow<File?>(null)
     // Expose list of saved video files for UI
     private val _savedVideos = MutableStateFlow<List<File>>(emptyList())
@@ -91,8 +120,6 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
      * Saved to private evidence_media dir as incident_<id>_video.mp4
      */
     fun recordEvidentiaryVideoClip(incidentId: Long) {
-        // Use the pre‑created evidenceDir instead of recreating each call
-        val dir = evidenceDir
         val capture = synchronized(this) { activeVideoCapture } ?: return
         try {
             val dir = File(getApplication<Application>().filesDir, "evidence_media")
@@ -168,6 +195,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     private fun startAudioRecording(tripId: String) {
         if (!isPro) return
         if (!_isSoundEnabled.value) return
+        var recorder: MediaRecorder? = null
         try {
             val dir = File(getApplication<Application>().filesDir, "evidence_media")
             if (!dir.exists()) {
@@ -176,7 +204,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
             val file = File(dir, "trip_${tripId}_audio.m4a")
             audioFile = file
 
-            val recorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            recorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                 MediaRecorder(getApplication())
             } else {
                 @Suppress("DEPRECATION")
@@ -195,6 +223,9 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
             mediaRecorder = recorder
         } catch (e: Exception) {
             e.printStackTrace()
+            // Release the half-initialized recorder so the mic/hardware isn't leaked.
+            runCatching { recorder?.release() }
+            mediaRecorder = null
         }
     }
 
@@ -256,20 +287,51 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     val currentRoute: StateFlow<String> = _currentRoute.asStateFlow()
 
     // ─── Subscription / Monetization ─────────────────────────────────────────
-    private val _subscriptionState = MutableStateFlow(SubscriptionState(isPro = true, isLoading = false))
+    // Starts as "not Pro, still loading" until BillingManager reports the real state
+    // (mirrored in via setBillingManager). Defaulting to not-Pro is the safe gate.
+    private val _subscriptionState = MutableStateFlow(SubscriptionState(isPro = false, isLoading = true))
     val subscriptionState: StateFlow<SubscriptionState> = _subscriptionState.asStateFlow()
 
-
-
-    private val _debugProOverride = MutableStateFlow(true)
+    // Debug-only Pro override for exercising premium features during development.
+    // Has NO effect in release builds — guarded by BuildConfig.DEBUG below.
+    private val _debugProOverride = MutableStateFlow(false)
     val debugProOverride: StateFlow<Boolean> = _debugProOverride.asStateFlow()
 
     fun toggleDebugPro() {
+        if (!BuildConfig.DEBUG) return // never grant free Pro in a release build
         _debugProOverride.value = !_debugProOverride.value
         speakText(if (_debugProOverride.value) "Premium Pro Active" else "Premium Pro Inactive")
     }
 
-    val isPro: Boolean get() = true
+    // ─── 7-day free VIP trial ────────────────────────────────────────────────
+    // Every new install gets full VIP/Pro access for its first 7 days; afterwards
+    // it drops to the limited free tier unless a subscription is active.
+    private val trialManager = TrialManager(application).also { it.ensureStarted() }
+    private val _trialActive = MutableStateFlow(trialManager.isInTrial())
+    val trialActive: StateFlow<Boolean> = _trialActive.asStateFlow()
+    private val _trialDaysRemaining = MutableStateFlow(trialManager.daysRemaining())
+    val trialDaysRemaining: StateFlow<Int> = _trialDaysRemaining.asStateFlow()
+
+    /** Re-evaluate the trial window (call on app resume in case it lapsed while open). */
+    fun refreshTrial() {
+        _trialActive.value = trialManager.isInTrial()
+        _trialDaysRemaining.value = trialManager.daysRemaining()
+    }
+
+    // Pro entitlement = a real, acknowledged Google Play subscription (mirrored from
+    // BillingManager) OR an active 7-day VIP trial. The debug override only applies in
+    // debug builds. Use this synchronous getter from event handlers (onClick etc.) where
+    // the live value is read at the moment of the action.
+    val isPro: Boolean get() =
+        _subscriptionState.value.isPro || trialManager.isInTrial() || (BuildConfig.DEBUG && _debugProOverride.value)
+
+    // Observable equivalent of [isPro] for Composables: reads taken DURING composition must
+    // collect this so gated UI (e.g. the evidence locker) recomposes when Pro status changes
+    // mid-session, rather than reading the non-observable getter once.
+    val isProFlow: StateFlow<Boolean> =
+        combine(_subscriptionState, _debugProOverride, _trialActive) { sub, dbg, trial ->
+            sub.isPro || trial || (BuildConfig.DEBUG && dbg)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, _subscriptionState.value.isPro || _trialActive.value)
 
     private val _speedWarningThreshold = MutableStateFlow(8)
     val speedWarningThreshold: StateFlow<Int> = _speedWarningThreshold.asStateFlow()
@@ -517,6 +579,8 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     private fun startRecordingSession() {
         val tripId = "TRIP_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         pruneOldestFilesIfStorageExceeded()
+        sessionHardBrakeCount = 0
+        tripStartTimeMs = System.currentTimeMillis()
         _activeTripId.value = tripId
         _isRecording.value = true
         speakText("Recording started. Telemetry stamped.")
@@ -541,6 +605,16 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         freeTripCapJob?.cancel()
         freeTripCapJob = null
         val stoppedTripId = _activeTripId.value
+
+        // Update adaptive Q-score with this trip's raw score before clearing state
+        val tripIncidents = allIncidents.value.filter { stoppedTripId != null && it.sessionFrameFolder == stoppedTripId }
+        val hardBrakes = tripIncidents.count { it.maxGForce >= 1.5 }
+        val rawScore = com.example.data.rawTripScore(hardBrakes, tripIncidents.size - hardBrakes)
+        adaptiveEngine.updateWithTripScore(rawScore)
+        _adaptiveScore.value = adaptiveEngine.getAdaptiveScore()
+        _scoreTrend.value = adaptiveEngine.getTrend()
+        _recentTripScores.value = adaptiveEngine.getRecentScores(5)
+
         _isRecording.value = false
         _activeTripId.value = null
         speakText("Recording stopped. Exporting telemetry.")
@@ -741,6 +815,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     // Accelerometer checks for sudden braking and crash triggers
     override fun onSensorChanged(event: SensorEvent?) {
         if (event == null || event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
+        if (event.values.size < 3) return // guard against short sensor payloads
 
         val x = event.values[0]
         val y = event.values[1]
@@ -749,12 +824,23 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         // Calculate direct net acceleration vector against Earth's standard gravity
         val currentAccelNorm = sqrt(x * x + y * y + z * z)
         val gValue = (currentAccelNorm / SensorManager.GRAVITY_EARTH).toDouble()
-        _gForce.value = String.format(Locale.US, "%.2f", gValue).toDouble()
+        // Round to 2 decimals for display without the redundant String round-trip.
+        _gForce.value = kotlin.math.round(gValue * 100.0) / 100.0
 
-        // Detect a hard brake spike: sudden horizontal deceleration force
-        // Generally, normal driving averages ~1G total. Sudden deceleration shows heavy spike
-        // Hard braking automatic alerts and auto incident logging disabled per user request.
-        // Telemetry calculation of _gForce is fully preserved above.
+        // Count hard-brake spikes for the adaptive risk level (no incident logging — telemetry only)
+        if (gValue >= 1.5 && _isRecording.value) {
+            val now = System.currentTimeMillis()
+            if (now - lastHardBrakeCountTime > 1500L) {
+                sessionHardBrakeCount++
+                lastHardBrakeCountTime = now
+            }
+        }
+        val elapsedMins = if (tripStartTimeMs > 0) (System.currentTimeMillis() - tripStartTimeMs) / 60000.0 else 0.0
+        val rawRisk = adaptiveEngine.computeRiskLevel(
+            _currentSpeed.value, _targetSpeedLimit.value, gValue, sessionHardBrakeCount, elapsedMins
+        )
+        // EMA-smooth so the dashboard risk halo glides instead of flickering on spikes
+        _riskLevel.value = adaptiveEngine.smoothRisk(_riskLevel.value, rawRisk)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
@@ -769,15 +855,19 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
 
     fun exportEvidenceZip(context: Context, incidentsToExport: List<IncidentRecord>, onResult: (String?) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
+            // Held outside the try so the underlying file/zip stream is closed on EVERY exit
+            // path (success, throw, or cancellation) — not just the happy path.
+            var streamToClose: java.io.Closeable? = null
             try {
                 val cacheDir = context.cacheDir
                 val zipFile = java.io.File(cacheDir, "Defender_Evidence_Bundle_${System.currentTimeMillis()}.zip")
                 val zipOut = java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile))
+                streamToClose = zipOut
 
                 // 1. Write metadata/report file
                 val reportBuilder = StringBuilder()
                 reportBuilder.append("=====================================================\n")
-                reportBuilder.append("GOOD DRIVERS' DEFENDER - COMPREHENSIVE EVIDENCE BUNDLE\n")
+                reportBuilder.append("GOOD DRIVERS DEFENDER - COMPREHENSIVE EVIDENCE BUNDLE\n")
                 reportBuilder.append("=====================================================\n\n")
                 reportBuilder.append("Export Time (ISO): ${SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())}\n")
                 reportBuilder.append("Total Stamped Incidents Packaged: ${incidentsToExport.size}\n")
@@ -806,7 +896,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
                     // Generate dummy camera frames using ASCII art with overlay stamp
                      val frameContent = """
                          ======================================================================
-                         GOOD DRIVERS' DEFENDER - DUAL-CAM EMBEDDED TELEMETRY TIMESTAMP OVERLAY
+                         GOOD DRIVERS DEFENDER - DUAL-CAM EMBEDDED TELEMETRY TIMESTAMP OVERLAY
                          ======================================================================
                          TIMESTAMP STAMP: [ $dateFormatted ]
                          CUSTODY KEY: [ ${incident.sessionFrameFolder} ]
@@ -940,6 +1030,10 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
                 withContext(Dispatchers.Main) {
                     onResult(null)
                 }
+            } finally {
+                // Idempotent: the success path already closed it; runCatching swallows
+                // the harmless double-close and any close-time error.
+                runCatching { streamToClose?.close() }
             }
         }
     }
@@ -1346,6 +1440,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         super.onCleared()
         activeRecording?.stop()
         activeRecording = null
+        stopAudioRecording() // release the audio MediaRecorder + mic if still recording
         sensorManager?.unregisterListener(this)
         locationCallback?.let {
             fusedLocationClient?.removeLocationUpdates(it)

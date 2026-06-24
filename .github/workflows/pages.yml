@@ -1,0 +1,59 @@
+name: Deploy site to GitHub Pages
+
+# Publishes the presentation microsite at the site root and the standalone
+# privacy policy at /privacy.html (the URL Google Play needs).
+
+# Publishes the presentation microsite at the site root and the standalone
+# privacy policy at /privacy.html.
+#
+# PREREQUISITE: GitHub Pages must be enabled (Settings → Pages → Source:
+# "GitHub Actions"). For a PRIVATE repo that needs a paid plan (Pro/Team) OR
+# making the repo public; the github-pages environment also defaults to the
+# DEFAULT branch only. Until then this is manual-only (workflow_dispatch) so it
+# never fails CI on pushes. The privacy policy is also bundled into microsite/
+# for hosting on your own server, which needs none of the above.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; let an in-progress run finish.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble site (microsite at root + privacy policy)
+        run: |
+          mkdir -p _site
+          cp -r microsite/. _site/
+          # Standalone privacy policy + its stylesheet, for the Play Console URL requirement
+          cp web/privacy.html _site/privacy.html
+          cp web/style.css _site/style.css
+          echo "Published files:" && ls -1A _site
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

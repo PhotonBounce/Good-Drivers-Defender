@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://photon-bounce.com/gooddriversdefender/sitemap.xml

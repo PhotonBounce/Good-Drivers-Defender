@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.viewmodel.RecorderViewModel
+import com.aistudio.driverrecorder.gpxrt.BuildConfig
 import kotlinx.coroutines.delay
 
 // Feature comparison row data
@@ -55,6 +56,15 @@ fun PaywallScreen(
     onDismiss: () -> Unit
 ) {
     val subState by viewModel.subscriptionState.collectAsState()
+    val trialActive by viewModel.trialActive.collectAsState()
+    val trialDaysLeft by viewModel.trialDaysRemaining.collectAsState()
+
+    // Real, localized prices from Google Play (falls back to defaults until the
+    // product details load). Reading subState above means this recomposes — and
+    // re-reads the live prices — once BillingManager reports loaded state.
+    val billing = viewModel.getBillingManager()
+    val monthlyPrice = billing?.getMonthlyPriceString() ?: "$4.99"
+    val annualPrice = billing?.getAnnualPriceString() ?: "$34.99"
 
     // Animated gradient shimmer on header
     val shimmerTranslate by rememberInfiniteTransition(label = "shimmer")
@@ -149,18 +159,21 @@ fun PaywallScreen(
                         )
                     }
                 }
-                // Secret developer debug override button in top-left
-                IconButton(
-                    onClick = { viewModel.toggleDebugPro() },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.BugReport,
-                        contentDescription = "Debug Override",
-                        tint = Color.White.copy(alpha = 0.15f)
-                    )
+                // Developer debug override — DEBUG BUILDS ONLY. Never ships in release,
+                // so production users cannot unlock Pro for free.
+                if (BuildConfig.DEBUG) {
+                    IconButton(
+                        onClick = { viewModel.toggleDebugPro() },
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BugReport,
+                            contentDescription = "Debug Override",
+                            tint = Color.White.copy(alpha = 0.15f)
+                        )
+                    }
                 }
 
                 // Close button top-right
@@ -179,6 +192,42 @@ fun PaywallScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
+
+            // ── FREE VIP TRIAL BANNER (new installs, not yet subscribed) ─────
+            if (trialActive && !subState.isPro) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .background(Color(0xFF143020), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF22C55E), RoundedCornerShape(12.dp))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CardGiftcard,
+                        contentDescription = null,
+                        tint = Color(0xFF22C55E),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Free VIP trial active",
+                            color = Color(0xFF22C55E),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "$trialDaysLeft ${if (trialDaysLeft == 1) "day" else "days"} left — every feature unlocked. Subscribe any time to keep VIP after it ends.",
+                            color = Color(0xFF86EFAC),
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // ── PLAN SELECTOR (only show if not Pro) ─────────────────────────
             if (!subState.isPro) {
@@ -204,7 +253,7 @@ fun PaywallScreen(
                         PlanCard(
                             modifier = Modifier.weight(1f),
                             title = "MONTHLY",
-                            price = "$4.99",
+                            price = monthlyPrice,
                             period = "per month",
                             badge = null,
                             isSelected = selectedPlan == "monthly",
@@ -215,9 +264,9 @@ fun PaywallScreen(
                         PlanCard(
                             modifier = Modifier.weight(1f),
                             title = "ANNUAL",
-                            price = "$34.99",
+                            price = annualPrice,
                             period = "per year",
-                            badge = "SAVE 42%",
+                            badge = "BEST VALUE",
                             isSelected = selectedPlan == "annual",
                             onClick = { selectedPlan = "annual" }
                         )
@@ -258,7 +307,7 @@ fun PaywallScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (selectedPlan == "annual") "UNLOCK DEFENDER PRO — $34.99/yr" else "UNLOCK DEFENDER PRO — $4.99/mo",
+                                text = if (selectedPlan == "annual") "UNLOCK DEFENDER PRO — $annualPrice/yr" else "UNLOCK DEFENDER PRO — $monthlyPrice/mo",
                                 color = Color(0xFF0A0A1A),
                                 fontWeight = FontWeight.Black,
                                 fontSize = 13.sp

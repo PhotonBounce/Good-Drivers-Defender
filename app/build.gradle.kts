@@ -30,8 +30,8 @@ android {
     applicationId = "com.aistudio.driverrecorder.gpxrt"
     minSdk = 24
     targetSdk = 35          // Play Store requires targetSdk 35+ as of Aug 2025
-    versionCode = 3
-    versionName = "1.2"
+    versionCode = 4
+    versionName = "2.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -50,23 +50,28 @@ android {
       keyPassword = (keyProperties["keyPassword"] as? String)
         ?: System.getenv("KEY_PASSWORD")
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
   }
 
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      // R8 code + resource shrinking for a smaller release AAB. Keep rules for the
+      // serialization/reflection libraries live in proguard-rules.pro. NOTE: smoke-test
+      // a release build on a device (internal testing track) before production rollout.
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      // Only assign signing config when a keystore is actually available (CI or local).
+      // Note: CI surfaces signing secrets as job-level env, so an *unset* secret arrives as
+      // an empty string (not null) — isNullOrEmpty() treats that as "no keystore" so the
+      // release still builds UNSIGNED (and validates R8) instead of failing validateSigningRelease.
+      val hasKeystore = keyPropertiesFile.exists() || !System.getenv("STORE_PASSWORD").isNullOrEmpty()
+      if (hasKeystore) {
+        signingConfig = signingConfigs.getByName("release")
+      }
     }
     debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
+      // Use AGP's auto-managed debug signing key — no external keystore required
     }
   }
   compileOptions {
@@ -128,7 +133,6 @@ dependencies {
   implementation(libs.okhttp)
   implementation(libs.play.services.location)
   implementation("com.android.billingclient:billing-ktx:7.1.1")
-  implementation(libs.play.services.ads)
   implementation(libs.retrofit)
   implementation("com.google.guava:guava:31.1-android")
   implementation("com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava")

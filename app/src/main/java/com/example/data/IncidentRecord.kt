@@ -14,7 +14,7 @@ data class IncidentRecord(
     val speedLimitMph: Int,
     val maxGForce: Double, // Sudden braking or impact force
     
-    // Extracellular Geolocation details (important for civil suits and reports)
+    // Geolocation details (important for incident reports)
     val latitude: Double,
     val longitude: Double,
     val streetOrHighway: String,

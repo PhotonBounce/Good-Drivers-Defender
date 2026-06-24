@@ -35,9 +35,10 @@ fun saveFileToPublicDownloads(
             val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
             val itemUri: Uri? = resolver.insert(collection, values)
             if (itemUri == null) return false
-            resolver.openOutputStream(itemUri).use { outStream ->
+            val outStream = resolver.openOutputStream(itemUri) ?: return false
+            outStream.use { out ->
                 FileInputStream(sourceFile).use { input ->
-                    input.copyTo(outStream!!)
+                    input.copyTo(out)
                 }
             }
             // Mark the item as not pending so it becomes visible.
