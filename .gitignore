@@ -16,3 +16,14 @@
 local.properties
 .env
 debug.keystore
+
+# Secrets
+key.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+.env
+.env.local
+.env.production
+.env.development

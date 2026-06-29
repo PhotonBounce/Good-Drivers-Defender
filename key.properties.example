@@ -1,0 +1,6 @@
+# Copy this to key.properties (DO NOT commit key.properties)
+# For release builds, use a real keystore password.
+storeFile=../release.keystore
+storePassword=YOUR_RELEASE_PASSWORD
+keyAlias=your-release-alias
+keyPassword=YOUR_RELEASE_KEY_PASSWORD
