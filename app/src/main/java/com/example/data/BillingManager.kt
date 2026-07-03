@@ -8,6 +8,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlin.coroutines.resume
 
 /** Google Play product IDs — must match exactly what you set in Play Console */
 object DefenderProducts {
@@ -128,14 +129,29 @@ class BillingManager(
             .setProductList(productList)
             .build()
 
-        val result = billingClient.queryProductDetails(params)
-        if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            result.productDetailsList?.forEach { details ->
+        // Billing 8.x delivers QueryProductDetailsResult: the fetched details plus
+        // the products Play could NOT serve (unknown ID / no eligible offer) — the
+        // #1 clue when a price fails to appear in the paywall. The callback API is
+        // wrapped in a coroutine here because the KTX helper's result shape changed
+        // across 7.x → 8.x.
+        val (billingResult, detailsResult) =
+            suspendCancellableCoroutine<Pair<BillingResult, QueryProductDetailsResult>> { cont ->
+                billingClient.queryProductDetailsAsync(params) { br, dr ->
+                    if (cont.isActive) cont.resume(br to dr)
+                }
+            }
+        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            detailsResult.productDetailsList.forEach { details ->
                 when (details.productId) {
                     DefenderProducts.PRO_MONTHLY -> monthlyDetails = details
                     DefenderProducts.PRO_ANNUAL  -> annualDetails  = details
                 }
             }
+            detailsResult.unfetchedProductList.forEach { unfetched ->
+                Log.w(TAG, "Play could not fetch product: $unfetched")
+            }
+        } else {
+            Log.w(TAG, "queryProductDetails failed: ${billingResult.debugMessage}")
         }
     }
 
