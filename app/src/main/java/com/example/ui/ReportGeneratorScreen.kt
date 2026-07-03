@@ -94,7 +94,7 @@ fun ReportGeneratorScreen(
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
                     ) {
-                        Text("UPGRADE TO PRO TO DRAFT CIVIL SUIT", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold)
+                        Text("UPGRADE TO PRO TO DRAFT COMPLAINTS", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold)
                     }
                     
                     TextButton(onClick = onBackToLocker) {
@@ -116,7 +116,7 @@ fun ReportGeneratorScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(imageVector = Icons.Default.Gavel, contentDescription = null, tint = Color.DarkGray, modifier = Modifier.size(64.dp))
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Select an incident from the Storage Locker tab to draft a Civil Suit.", color = Color.Gray)
+                Text("Select an incident from the Storage Locker tab to draft a complaint.", color = Color.Gray)
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(onClick = onBackToLocker, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
                     Text("Go to Storage Locker")

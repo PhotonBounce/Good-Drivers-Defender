@@ -159,6 +159,19 @@ Play review friction.
 - [x] **R8 validated in CI** — every run now builds the release bundle (`bundleRelease`),
   so the optimized release pipeline is exercised continuously (signed when secrets are
   present, unsigned otherwise), not only once secrets exist.
+- [x] **Play Billing Library 8.3.0** — migrated from 7.1.1 ahead of Google's
+  2026-08-31 "must use v8+" enforcement. The one breaking change (query result now
+  carries fetched + unfetched product lists) is handled; unfetched products are
+  logged as the first clue when a paywall price fails to load.
+- [x] **Edge-to-edge (Android 15 / SDK 35) verified** — `enableEdgeToEdge()` was already
+  in place and ZERO deprecated window APIs are used (no statusBarColor/systemUiVisibility/
+  fitsSystemWindows anywhere), so the "deprecated edge-to-edge APIs" Play warning cannot
+  trigger. Polished: both bars pinned to dark style (app is dark-only) and Scaffold
+  container matched to the app palette so light-mode devices don't get a mismatched
+  status-bar band or invisible icons on the splash.
+- [x] **Large screens (Android 16) verified** — no `screenOrientation` / `resizeableActivity`
+  restrictions in the manifest and zero orientation-lock calls in code; splash no longer
+  replays on rotation/resize (rememberSaveable).
 - [x] **Manifest / SDK audit passed** — targetSdk 35 (meets Play's current floor),
   versionCode 4 / versionName 2.0, final applicationId `com.aistudio.driverrecorder.gpxrt`;
   no `QUERY_ALL_PACKAGES` / `MANAGE_EXTERNAL_STORAGE` / background-location; storage perms
@@ -178,5 +191,9 @@ Play review friction.
 - [ ] Complete Data Safety form in Play Console (answers in `docs/STORE_LISTING.md`)
 - [ ] Submit FGS + permissions justification (short demo video of the notification)
 - [ ] Complete IARC content rating questionnaire
+- [ ] Review the **third-party app store listing** preference (Play Console shows a
+  "Your app listings will be published to third-party app stores" notice — EU DMA).
+  Play Console → Settings → Developer account → third-party app store preferences;
+  opt in or out by the stated deadline (can be changed any time later)
 - [ ] Upload assets from `play_assets/` to Play Console
 - [ ] **Smoke-test a release (R8) build on a real device** (internal testing track) before production

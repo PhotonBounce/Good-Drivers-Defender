@@ -264,7 +264,7 @@ fun LockerScreen(
                                     Button(
                                         onClick = {
                                             if (!viewModel.isPro) {
-                                                viewModel.speakText("Certified Evidence ZIP packaging is a Pro feature. Opening paywall.")
+                                                viewModel.speakText("Evidence ZIP packaging is a Pro feature. Opening paywall.")
                                                 viewModel.navigateTo("upgrade")
                                             } else {
                                                 isExporting = true
@@ -327,7 +327,7 @@ fun LockerScreen(
                                     Button(
                                         onClick = {
                                             if (!viewModel.isPro) {
-                                                viewModel.speakText("Certified Evidence ZIP packaging is a Pro feature. Opening paywall.")
+                                                viewModel.speakText("Evidence ZIP packaging is a Pro feature. Opening paywall.")
                                                 viewModel.navigateTo("upgrade")
                                             } else {
                                                 isExporting = true
@@ -760,7 +760,7 @@ fun LockerScreen(
                                         ) {
                                             Icon(imageVector = Icons.Default.Gavel, contentDescription = "Gavel", tint = Color.White, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Draft Civil Suit", color = Color.White, fontSize = 12.sp)
+                                            Text("Draft Complaint", color = Color.White, fontSize = 12.sp)
                                         }
                                     }
                                 }
