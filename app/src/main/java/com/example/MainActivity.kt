@@ -4,6 +4,7 @@ import android.Manifest
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,7 +58,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Android 15 (targetSdk 35) forces edge-to-edge. Every screen in this app
+        // paints a midnight-dark palette regardless of the device theme, so pin
+        // BOTH bars to dark style (light icons) over a transparent scrim —
+        // otherwise light-mode devices get invisible dark icons over the dark
+        // splash and a light dynamic-color band behind the status bar.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
 
         // Keep the screen on continuously when this security app is foregrounded
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -80,7 +90,9 @@ class MainActivity : ComponentActivity() {
         viewModel.setBillingManager(billingManager)
 
         setContent {
-    var showSplash by remember { mutableStateOf(true) }
+    // Saveable so rotations / window resizes (foldables, tablets, multi-window)
+    // don't replay the 2-second splash on every configuration change.
+    var showSplash by rememberSaveable { mutableStateOf(true) }
     if (showSplash) {
         SplashScreen {
             showSplash = false
@@ -131,6 +143,9 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        // Match the screens' midnight palette so the band behind the transparent
+        // status bar doesn't flash the device theme's dynamic color in light mode.
+        containerColor = Color(0xFF0F172A),
         bottomBar = {
             if (!showOnboardingInfo) {
                 MainAppBottomBar(viewModel = viewModel)
@@ -142,7 +157,7 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Keep track of which incident is currently being drafted in the Civil Suit Form
+            // Keep track of which incident is currently being drafted in the complaint form
             var activeSuitIncident by remember { mutableStateOf<IncidentRecord?>(null) }
             val currentRoute by viewModel.currentRoute.collectAsState()
 
