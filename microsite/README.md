@@ -22,6 +22,7 @@ assets/
   icon.png          App icon (also used as favicon / apple-touch-icon)
   feature.png       OG / social share image
   shots/*.png       10 screenshot renders used in the gallery
+GoodDriversDefender.apk   NOT included — see "Enable the APK download" below
 ```
 
 ## Deploy (for whoever uploads it)
@@ -37,6 +38,31 @@ assets/
      "403 Forbidden" you get when directory listing is disabled and no index is found.
 2. Verify: open `https://photon-bounce.com/gooddriversdefender/` — the page title should
    be "Good Drivers Defender — AI Dashcam & Driving Coach" and the hero reads "Drive smarter."
+
+## Enable the APK download
+
+The hero has a **"Download beta APK"** button wired to `GoodDriversDefender.apk` (a plain
+relative link, `index.html` search for `apkDownload`) — but the APK file itself is **not**
+in this folder. It has to come from GitHub Actions, which this environment could not reach
+directly (its network egress is HTTPS-only; GitHub's artifact storage and the Android build
+toolchain are both on hosts outside that allowlist).
+
+To finish it, whoever has normal internet + GitHub access should:
+1. Open the latest green build:
+   https://github.com/PhotonBounce/Good-Drivers-Defender/actions
+   (pick the newest run of "Android CI" with a green check)
+2. Scroll to **Artifacts** → download **`debug-apk`** → unzip it → you get `app-debug.apk`.
+3. Rename it to **`GoodDriversDefender.apk`** and upload it into this same
+   `gooddriversdefender/` folder on the server, next to `index.html`.
+4. Reload the page — the button downloads it immediately, no other changes needed.
+
+If the button is clicked before the file is uploaded, the browser will show a 404 for that
+one file — the rest of the site is unaffected.
+
+Note: `debug-apk` is a **debug build** (not signed for Play, "Unknown sources" warning on
+install — expected for a pre-launch beta). For a production-signed APK/AAB instead, see
+`docs/PLAY_SUBMISSION_STEPS.md` in the main repo (the signing-secrets step) — once that's
+set up, CI's `release-aab` artifact is the Play-ready bundle.
 
 ## Notes / things to personalize
 
