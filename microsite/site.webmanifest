@@ -1,13 +1,18 @@
 {
+  "id": "/gooddriversdefender/",
   "name": "Good Drivers Defender",
   "short_name": "Defender",
   "description": "AI dashcam & driving coach — adaptive scoring, real-time risk intelligence, on-device evidence. Coming soon to Google Play.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#05060f",
   "theme_color": "#05060f",
   "icons": [
-    { "src": "assets/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

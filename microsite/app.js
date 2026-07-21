@@ -148,4 +148,38 @@
       if (el) navIO.observe(el);
     });
   }
+
+  /* ---- PWA: service worker + install prompt ----
+     Lets the site run as an installed, offline-capable app on a mobile browser
+     (Android Chrome shows the native install UI; this button is a discoverable
+     shortcut to it). Safe no-op on browsers without support (e.g. iOS Safari,
+     which instead relies on the apple-mobile-web-app-* meta tags in <head>). */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {
+        /* offline/unsupported host — site still works fully online */
+      });
+    });
+  }
+
+  var deferredInstallPrompt = null;
+  var installBtn = document.getElementById("installBtn");
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (installBtn) installBtn.hidden = false;
+  });
+  if (installBtn) {
+    installBtn.addEventListener("click", function () {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.finally(function () {
+        deferredInstallPrompt = null;
+        installBtn.hidden = true;
+      });
+    });
+  }
+  window.addEventListener("appinstalled", function () {
+    if (installBtn) installBtn.hidden = true;
+  });
 })();

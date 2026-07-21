@@ -367,3 +367,17 @@ footer a.link { color: var(--cyan); }
   * { animation: none !important; transition: none !important; }
   .reveal { opacity:1; transform:none; }
 }
+
+/* ---------- install-as-app floating button ---------- */
+.install-fab {
+  position: fixed; right: 18px; bottom: 18px; z-index: 70;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 20px; border-radius: 999px; border: none; cursor: pointer;
+  font-weight: 800; font-size: 14px; color: #04130c;
+  background: linear-gradient(120deg, var(--cyan), var(--green));
+  box-shadow: 0 14px 34px rgba(34,197,94,.4);
+  animation: fabIn .4s var(--ease);
+}
+.install-fab:hover { transform: translateY(-2px); }
+.install-fab[hidden] { display: none; }
+@keyframes fabIn { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform:none; } }

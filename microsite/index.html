@@ -10,8 +10,12 @@
 <meta property="og:image" content="assets/feature.png" />
 <meta name="theme-color" content="#05060f" />
 <link rel="icon" href="assets/icon.png" />
-<link rel="apple-touch-icon" href="assets/icon.png" />
+<link rel="apple-touch-icon" href="assets/icon-180.png" />
 <link rel="manifest" href="site.webmanifest" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Defender" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Good Drivers Defender — AI Dashcam & Driving Coach" />
 <meta name="twitter:description" content="Adaptive driving score, real-time risk intelligence, on-device evidence. Coming soon to Google Play." />
@@ -383,6 +387,9 @@
     <p class="made" style="opacity:.6">© <span id="yr"></span> Good Drivers Defender. Recording your own drive is legal; audio-recording consent laws vary by jurisdiction.</p>
   </div>
 </footer>
+
+<!-- Install-as-app prompt (shown only when the browser supports it, e.g. Android Chrome) -->
+<button id="installBtn" class="install-fab" hidden>⬇ Install App</button>
 
 <script src="app.js"></script>
 </body>
