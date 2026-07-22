@@ -17,7 +17,7 @@ plugins {
 
 android {
   namespace = "com.aistudio.driverrecorder.gpxrt"
-  compileSdk = 35
+  compileSdk = 36
 
   // Load signing secrets from key.properties (not committed to git)
   val keyPropertiesFile = rootProject.file("key.properties")
@@ -29,7 +29,7 @@ android {
   defaultConfig {
     applicationId = "com.aistudio.driverrecorder.gpxrt"
     minSdk = 24
-    targetSdk = 35          // Play Store requires targetSdk 35+ as of Aug 2025
+    targetSdk = 36          // Play Store requires targetSdk 36+ (Android 16) — enforced from Aug 30, 2026
     versionCode = 4
     versionName = "2.0"
 
@@ -132,7 +132,7 @@ dependencies {
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   implementation(libs.play.services.location)
-  implementation("com.android.billingclient:billing-ktx:8.3.0")
+  implementation("com.android.billingclient:billing-ktx:9.1.0")
   implementation(libs.retrofit)
   implementation("com.google.guava:guava:31.1-android")
   implementation("com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava")

@@ -159,10 +159,13 @@ Play review friction.
 - [x] **R8 validated in CI** — every run now builds the release bundle (`bundleRelease`),
   so the optimized release pipeline is exercised continuously (signed when secrets are
   present, unsigned otherwise), not only once secrets exist.
-- [x] **Play Billing Library 8.3.0** — migrated from 7.1.1 ahead of Google's
-  2026-08-31 "must use v8+" enforcement. The one breaking change (query result now
-  carries fetched + unfetched product lists) is handled; unfetched products are
-  logged as the first clue when a paywall price fails to load.
+- [x] **Play Billing Library 9.1.0** — migrated 7.1.1 → 8.3.0 → 9.1.0. The 8.x query-result
+  shape (fetched + unfetched product lists) is handled; unfetched products are logged as
+  the first clue when a paywall price fails to load. Verified our code touches none of the
+  9.x-specific changes (`BillingResponseCode.ERROR`→`BILLING_UNAVAILABLE` rename,
+  `DeveloperProvidedBillingDetails.getLinkUri()` nullability — neither is referenced;
+  we don't use alternative/user-choice billing) — the new sub-response-code fields
+  (insufficient funds / ineligible) fall through our existing `else` branch safely.
 - [x] **Edge-to-edge (Android 15 / SDK 35) verified** — `enableEdgeToEdge()` was already
   in place and ZERO deprecated window APIs are used (no statusBarColor/systemUiVisibility/
   fitsSystemWindows anywhere), so the "deprecated edge-to-edge APIs" Play warning cannot
@@ -172,11 +175,15 @@ Play review friction.
 - [x] **Large screens (Android 16) verified** — no `screenOrientation` / `resizeableActivity`
   restrictions in the manifest and zero orientation-lock calls in code; splash no longer
   replays on rotation/resize (rememberSaveable).
-- [x] **Manifest / SDK audit passed** — targetSdk 35 (meets Play's current floor),
-  versionCode 4 / versionName 2.0, final applicationId `com.aistudio.driverrecorder.gpxrt`;
-  no `QUERY_ALL_PACKAGES` / `MANAGE_EXTERNAL_STORAGE` / background-location; storage perms
-  capped (`WRITE…`≤28, `READ…`≤32); foreground service declares `location|microphone` types
-  with matching FGS permissions; adaptive launcher icons present.
+- [x] **Manifest / SDK audit passed** — targetSdk/compileSdk 36 (Android 16 — Play's current
+  floor as of the Aug 30, 2026 enforcement date; was 35), versionCode 4 / versionName 2.0,
+  final applicationId `com.aistudio.driverrecorder.gpxrt`; no `QUERY_ALL_PACKAGES` /
+  `MANAGE_EXTERNAL_STORAGE` / background-location; storage perms capped (`WRITE…`≤28,
+  `READ…`≤32); foreground service declares `location|microphone` types with matching FGS
+  permissions; adaptive launcher icons present. AGP bumped 8.4.2 → 8.13.0 (required for
+  compileSdk 36 — AGP < 8.9 doesn't support it). Added explicit
+  `android:enableOnBackInvokedCallback="true"` (predictive back best-practice for API 33+;
+  the app had no custom back-press handling, so this is a safe, mechanical opt-in).
 
 ### [YOU must do]
 - [ ] Create the `defender_pro_monthly` + `defender_pro_annual` subscriptions in Play Console
