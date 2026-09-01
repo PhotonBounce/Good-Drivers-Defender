@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -129,8 +130,13 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
         Manifest.permission.RECORD_AUDIO,
         Manifest.permission.CAMERA
     )
-    val allPerms = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
+    val notifPerms = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
         basePerms + Manifest.permission.POST_NOTIFICATIONS else basePerms
+    // API < 29 writes exports directly to public Downloads, which needs the legacy
+    // storage grant at runtime — it was declared in the manifest but never requested,
+    // so every export silently failed on Android 7–9.
+    val allPerms = if (android.os.Build.VERSION.SDK_INT < 29)
+        notifPerms + Manifest.permission.WRITE_EXTERNAL_STORAGE else notifPerms
     val diagnosticPermissionsState = rememberMultiplePermissionsState(permissions = allPerms)
 
     var showOnboardingInfo by remember { mutableStateOf(!diagnosticPermissionsState.allPermissionsGranted) }
@@ -139,6 +145,22 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
         if (!diagnosticPermissionsState.allPermissionsGranted) {
             diagnosticPermissionsState.launchMultiplePermissionRequest()
         }
+    }
+
+    // The ViewModel registers GPS updates at init — BEFORE the permission dialog — and
+    // that registration is silently rejected. Re-register the moment location is
+    // granted, or every fresh install's first session records speed 0 / incidents at (0,0).
+    val locationGranted = diagnosticPermissionsState.permissions.any {
+        (it.permission == Manifest.permission.ACCESS_FINE_LOCATION ||
+            it.permission == Manifest.permission.ACCESS_COARSE_LOCATION) && it.status.isGranted
+    }
+    LaunchedEffect(locationGranted) {
+        if (locationGranted) viewModel.onLocationPermissionsGranted()
+    }
+    // Auto-dismiss the rationale card once everything is granted — it previously stayed
+    // up after the system dialog and its button fired a confusing second request.
+    LaunchedEffect(diagnosticPermissionsState.allPermissionsGranted) {
+        if (diagnosticPermissionsState.allPermissionsGranted) showOnboardingInfo = false
     }
 
     Scaffold(
@@ -157,9 +179,20 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Keep track of which incident is currently being drafted in the complaint form
-            var activeSuitIncident by remember { mutableStateOf<IncidentRecord?>(null) }
+            // Selected complaint-form incident lives in the ViewModel as an id and is
+            // re-resolved from the store — a remember'd IncidentRecord vanished on every
+            // rotation while the route itself survived, dumping the user on an empty form.
+            val activeSuitIncidentId by viewModel.activeSuitIncidentId.collectAsState()
+            val allIncidentsForSuit by viewModel.allIncidents.collectAsState(initial = emptyList())
+            val activeSuitIncident = allIncidentsForSuit.firstOrNull { it.id == activeSuitIncidentId }
             val currentRoute by viewModel.currentRoute.collectAsState()
+
+            // System back from any nested screen returns to the dashboard instead of
+            // quitting: this route model has no back stack, so without a handler the
+            // (predictive) back gesture dismissed the entire app from all 15 routes.
+            BackHandler(enabled = currentRoute != "dashboard") {
+                viewModel.navigateTo("dashboard")
+            }
 
             if (showOnboardingInfo) {
                 // Friendly high-contrast onboarding layout suitable for tablet/mobile mount
@@ -267,7 +300,7 @@ fun AppPermissionAndOnboardingWrapper(viewModel: RecorderViewModel, activity: Co
                 LockerScreen(
                     viewModel = viewModel,
                     onSelectIncidentForSuit = { selected ->
-                        activeSuitIncident = selected
+                        viewModel.setActiveSuitIncident(selected.id)
                         viewModel.navigateTo("report_builder")
                     }
                 )

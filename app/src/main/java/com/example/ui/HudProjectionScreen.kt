@@ -60,8 +60,11 @@ fun HudProjectionScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .graphicsLayer { scaleX = if (mirror) -1f else 1f }
     ) {
+        // Mirror applies ONLY to this projection layer — mirroring the root also
+        // flipped the back button, the MIRROR toggle and the telemetry strip,
+        // giving reversed labels and swapped touch targets while driving.
+        Box(Modifier.fillMaxSize().graphicsLayer { scaleX = if (mirror) -1f else 1f }) {
         // Sky / ground halves
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f).fillMaxWidth().background(Color(0xFF0A1733)))
@@ -86,6 +89,16 @@ fun HudProjectionScreen(
             drawCircle(Color(0xFF4ADE80), radius = 6f, center = Offset(cx, cyc))
         }
 
+        // Center speed — part of the mirrored projection (readable in a windshield reflection)
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("${speed.toInt()}", color = speedColor, fontSize = 150.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
+            Text("MPH", color = speedColor, fontSize = 26.sp, fontWeight = FontWeight.Black)
+        }
+        } // end mirrored projection layer
+
         // Header
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -109,15 +122,6 @@ fun HudProjectionScreen(
                 Spacer(Modifier.width(6.dp))
                 Text(if (mirror) "MIRROR ON" else "MIRROR", color = Color.White, fontSize = 12.sp)
             }
-        }
-
-        // Center speed
-        Column(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("${speed.toInt()}", color = speedColor, fontSize = 150.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
-            Text("MPH", color = speedColor, fontSize = 26.sp, fontWeight = FontWeight.Black)
         }
 
         // Bottom telemetry strip

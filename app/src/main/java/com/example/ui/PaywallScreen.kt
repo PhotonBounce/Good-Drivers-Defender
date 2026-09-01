@@ -82,7 +82,7 @@ fun PaywallScreen(
             label = "glowA"
         )
 
-    var selectedPlan by remember { mutableStateOf("annual") } // "monthly" or "annual"
+    var selectedPlan by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("annual") } // "monthly" or "annual"
 
     val bgGradient = Brush.verticalGradient(
         listOf(Color(0xFF0A0A1A), Color(0xFF0F0F2A), Color(0xFF0D0D1A))
@@ -277,10 +277,21 @@ fun PaywallScreen(
                     // Subscribe CTA button
                     Button(
                         onClick = {
-                            if (selectedPlan == "monthly") {
-                                viewModel.getBillingManager()?.launchMonthlyPurchase(activity)
+                            // The revenue path must never fail silently: launchPurchase
+                            // returns false when Play billing is unavailable or product
+                            // details haven't loaded — tell the user what's happening.
+                            val launched = if (selectedPlan == "monthly") {
+                                viewModel.getBillingManager()?.launchMonthlyPurchase(activity) ?: false
                             } else {
-                                viewModel.getBillingManager()?.launchAnnualPurchase(activity)
+                                viewModel.getBillingManager()?.launchAnnualPurchase(activity) ?: false
+                            }
+                            if (!launched) {
+                                val reason = if (!subState.billingAvailable)
+                                    "Google Play billing is unavailable on this device."
+                                else
+                                    "Plan details are still loading from Google Play. Please try again in a moment."
+                                viewModel.speakText(reason)
+                                android.widget.Toast.makeText(activity, reason, android.widget.Toast.LENGTH_LONG).show()
                             }
                         },
                         modifier = Modifier
@@ -323,11 +334,25 @@ fun PaywallScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Restore purchases
-                    TextButton(onClick = { viewModel.getBillingManager()?.refreshPurchases() }) {
+                    TextButton(onClick = {
+                        viewModel.getBillingManager()?.refreshPurchases()
+                        viewModel.speakText("Checking Google Play for your purchases.")
+                    }) {
                         Text(
                             "Restore Purchase",
                             color = Color.White.copy(alpha = 0.5f),
                             fontSize = 11.sp
+                        )
+                    }
+
+                    if (!subState.billingAvailable) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "⚠ Google Play billing is unavailable on this device, so subscribing isn't possible right now.",
+                            color = Color(0xFFFCA5A5),
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

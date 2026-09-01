@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Sos
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +44,10 @@ fun EmergencySosScreen(
     val incidents by viewModel.allIncidents.collectAsState()
     val context = LocalContext.current
 
-    var armed by remember { mutableStateOf(false) }
-    var countdown by remember { mutableStateOf(3) }
+    // Saveable so a rotation doesn't silently cancel an armed SOS countdown
+    // (the effect restarts and the countdown begins again — never a silent drop).
+    var armed by rememberSaveable { mutableStateOf(false) }
+    var countdown by rememberSaveable { mutableStateOf(3) }
 
     LaunchedEffect(armed) {
         if (armed) {
@@ -56,8 +59,10 @@ fun EmergencySosScreen(
             // Fire share intent
             // Guard against sending a bogus (0,0) "Null Island" link when GPS has no fix yet.
             val hasFix = kotlin.math.abs(lat) > 0.0001 || kotlin.math.abs(lon) > 0.0001
+            // Locale.US: default-locale "%.6f" renders comma decimals in much of the
+            // world, breaking the maps link in the single most critical message.
             val locationLine = if (hasFix)
-                "My live location: https://maps.google.com/?q=${"%.6f".format(lat)},${"%.6f".format(lon)}"
+                "My live location: https://maps.google.com/?q=${"%.6f".format(java.util.Locale.US, lat)},${"%.6f".format(java.util.Locale.US, lon)}"
             else
                 "My GPS location is not available yet — please call me immediately."
             val last = incidents.maxByOrNull { it.timestamp }
@@ -101,7 +106,7 @@ fun EmergencySosScreen(
         Spacer(Modifier.height(8.dp))
         Text(
             text = if (armed) "SENDING IN $countdown… tap to CANCEL"
-            else "Hold to arm. Shares your live GPS + last incident with an emergency contact.",
+            else "Tap to arm. Prepares a message with your live GPS + last incident to share with a contact.",
             color = if (armed) Color(0xFFFCA5A5) else Color(0xFF94A3B8),
             fontSize = 12.sp, textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 12.dp)

@@ -86,7 +86,16 @@ class BillingManager(
             .build()
 
         val result = billingClient.queryPurchasesAsync(params)
-        handlePurchaseList(result.purchasesList)
+        // Only trust the answer when Play actually answered. On a transient error
+        // (Play Store updating, service disconnected) purchasesList comes back
+        // empty — overwriting state from it would silently downgrade a paying
+        // subscriber on the next resume. Keep the previous entitlement instead.
+        if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            handlePurchaseList(result.purchasesList)
+        } else {
+            Log.w(TAG, "queryPurchases failed (${result.billingResult.responseCode}) — keeping previous entitlement")
+            _subscriptionState.value = _subscriptionState.value.copy(isLoading = false)
+        }
     }
 
     private fun handlePurchaseList(purchases: List<Purchase>) {
@@ -96,14 +105,12 @@ class BillingManager(
         }
 
         if (activePro != null) {
-            // Acknowledge if needed
+            // Acknowledge if needed — Google auto-refunds unacknowledged purchases
+            // after 3 days, so a silently dropped ack costs the user their Pro AND
+            // the sale. Check the result and retry with backoff; the resume-time
+            // re-query provides a further safety net on later launches.
             if (!activePro.isAcknowledged) {
-                val ackParams = AcknowledgePurchaseParams.newBuilder()
-                    .setPurchaseToken(activePro.purchaseToken)
-                    .build()
-                scope.launch {
-                    billingClient.acknowledgePurchase(ackParams)
-                }
+                acknowledgeWithRetry(activePro.purchaseToken)
             }
             val planId = activePro.products.firstOrNull { it in DefenderProducts.ALL }
             _subscriptionState.value = SubscriptionState(
@@ -113,6 +120,24 @@ class BillingManager(
             _subscriptionState.value = SubscriptionState(
                 isPro = false, isLoading = false, billingAvailable = true
             )
+        }
+    }
+
+    private fun acknowledgeWithRetry(purchaseToken: String) {
+        scope.launch {
+            val ackParams = AcknowledgePurchaseParams.newBuilder()
+                .setPurchaseToken(purchaseToken)
+                .build()
+            repeat(3) { attempt ->
+                val result = billingClient.acknowledgePurchase(ackParams)
+                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    Log.d(TAG, "Purchase acknowledged")
+                    return@launch
+                }
+                Log.w(TAG, "acknowledgePurchase attempt ${attempt + 1} failed: ${result.debugMessage}")
+                delay(2_000L * (attempt + 1))
+            }
+            Log.e(TAG, "acknowledgePurchase failed after retries — will retry on next refresh")
         }
     }
 
@@ -157,16 +182,17 @@ class BillingManager(
 
     // ─── Launch purchase flow ─────────────────────────────────────────────────
 
-    fun launchMonthlyPurchase(activity: Activity) = launchPurchase(activity, monthlyDetails)
-    fun launchAnnualPurchase(activity: Activity)  = launchPurchase(activity, annualDetails)
+    /** Returns false when the flow could not even be launched (no Play / details not loaded). */
+    fun launchMonthlyPurchase(activity: Activity): Boolean = launchPurchase(activity, monthlyDetails)
+    fun launchAnnualPurchase(activity: Activity): Boolean  = launchPurchase(activity, annualDetails)
 
-    private fun launchPurchase(activity: Activity, details: ProductDetails?) {
+    private fun launchPurchase(activity: Activity, details: ProductDetails?): Boolean {
         if (details == null) {
             Log.w(TAG, "Product details not loaded yet")
-            return
+            return false
         }
 
-        val offerToken = details.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return
+        val offerToken = details.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return false
 
         val productDetailsParams = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
@@ -180,6 +206,7 @@ class BillingManager(
             .build()
 
         billingClient.launchBillingFlow(activity, billingFlowParams)
+        return true
     }
 
     // ─── Purchase updates callback ─────────────────────────────────────────────
@@ -191,6 +218,12 @@ class BillingManager(
             }
             BillingClient.BillingResponseCode.USER_CANCELED -> {
                 Log.d(TAG, "User cancelled purchase")
+            }
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
+                // Local state got out of sync (e.g. a transient query failure earlier):
+                // the user owns the product but the app thinks they don't. Re-sync.
+                Log.w(TAG, "Purchase reports already-owned — resyncing entitlement")
+                scope.launch { queryExistingPurchases() }
             }
             else -> {
                 Log.e(TAG, "Purchase error: ${result.debugMessage}")

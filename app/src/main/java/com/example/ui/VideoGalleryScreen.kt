@@ -46,14 +46,20 @@ fun VideoGalleryScreen(viewModel: RecorderViewModel, modifier: Modifier = Modifi
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clickable {
-                             // Open the video with external player using FileProvider
-                             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-                             val intent = Intent(Intent.ACTION_VIEW).apply {
-                                 setDataAndType(uri, "video/*")
-                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                             // Open the video with external player using FileProvider.
+                             // Guarded: devices without any video handler threw an
+                             // uncaught ActivityNotFoundException and crashed the app.
+                             runCatching {
+                                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                                 val intent = Intent(Intent.ACTION_VIEW).apply {
+                                     setDataAndType(uri, "video/*")
+                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                 }
+                                 context.startActivity(intent)
+                             }.onFailure {
+                                 android.widget.Toast.makeText(context, "No video player app available", android.widget.Toast.LENGTH_SHORT).show()
                              }
-                             context.startActivity(intent)
                         }
                 ) {
                     Text(

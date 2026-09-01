@@ -27,20 +27,30 @@ class TrialManager(context: Context) {
     /** True while the install is still inside its free VIP window. */
     fun isInTrial(nowMs: Long = System.currentTimeMillis()): Boolean {
         val start = firstLaunchMs()
-        return start > 0L && nowMs < start + TRIAL_DURATION_MS
+        if (start <= 0L) return false
+        // Clock-rollback guard: never evaluate against a time earlier than the
+        // latest time already observed, so setting the device clock back cannot
+        // revive an expired trial.
+        val effectiveNow = maxOf(nowMs, prefs.getLong(KEY_LAST_SEEN, 0L))
+        if (effectiveNow > prefs.getLong(KEY_LAST_SEEN, 0L)) {
+            prefs.edit().putLong(KEY_LAST_SEEN, effectiveNow).apply()
+        }
+        return effectiveNow < start + TRIAL_DURATION_MS
     }
 
     /** Whole days left in the trial (0 once expired), rounded up, for UI display. */
     fun daysRemaining(nowMs: Long = System.currentTimeMillis()): Int {
         val start = firstLaunchMs()
         if (start <= 0L) return TRIAL_DAYS
-        val remaining = (start + TRIAL_DURATION_MS) - nowMs
+        val effectiveNow = maxOf(nowMs, prefs.getLong(KEY_LAST_SEEN, 0L))
+        val remaining = (start + TRIAL_DURATION_MS) - effectiveNow
         if (remaining <= 0L) return 0
         return ((remaining + DAY_MS - 1) / DAY_MS).toInt().coerceIn(0, TRIAL_DAYS)
     }
 
     companion object {
         private const val KEY_FIRST_LAUNCH = "first_launch_ms"
+        private const val KEY_LAST_SEEN = "last_seen_ms"
         const val TRIAL_DAYS = 7
         private const val DAY_MS = 24L * 60 * 60 * 1000
         const val TRIAL_DURATION_MS = TRIAL_DAYS * DAY_MS

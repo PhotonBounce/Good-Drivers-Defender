@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,7 +34,7 @@ fun LockerScreen(
     modifier: Modifier = Modifier
 ) {
     val incidents by viewModel.allIncidents.collectAsState()
-    var expandedIncidentId by remember { mutableStateOf<Long?>(null) }
+    var expandedIncidentId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     Column(
         modifier = modifier
@@ -70,17 +71,17 @@ fun LockerScreen(
         }
 
         if (incidents.isNotEmpty()) {
-            var selectedTimeframe by remember { mutableStateOf("All Logs") } // "All Logs", "Last 24 Hours", "Last 1 Hour", "Custom Range"
+            var selectedTimeframe by rememberSaveable { mutableStateOf("All Logs") } // "All Logs", "Last 24 Hours", "Last 1 Hour", "Custom Range"
             var isExporting by remember { mutableStateOf(false) }
             var exportTimeframeExpanded by remember { mutableStateOf(false) }
             val context = androidx.compose.ui.platform.LocalContext.current
 
             var showCustomTimeframeDialog by remember { mutableStateOf(false) }
             val df = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US) }
-            var customStartText by remember { mutableStateOf(df.format(Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000L))) }
-            var customEndText by remember { mutableStateOf(df.format(Date(System.currentTimeMillis()))) }
-            var customStartMillis by remember { mutableStateOf<Long?>(null) }
-            var customEndMillis by remember { mutableStateOf<Long?>(null) }
+            var customStartText by rememberSaveable { mutableStateOf(df.format(Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000L))) }
+            var customEndText by rememberSaveable { mutableStateOf(df.format(Date(System.currentTimeMillis()))) }
+            var customStartMillis by rememberSaveable { mutableStateOf<Long?>(null) }
+            var customEndMillis by rememberSaveable { mutableStateOf<Long?>(null) }
 
             if (showCustomTimeframeDialog) {
                 AlertDialog(
@@ -194,7 +195,7 @@ fun LockerScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Compile GPS coordinates, chain-of-custody hashes, audio witnesses, and dual camera overlays into a secure, encrypted ZIP package.",
+                                text = "Compile GPS coordinates, SHA-256 file digests, audio, snapshots and clips into an organized ZIP evidence package.",
                                 color = Color.LightGray,
                                 fontSize = 11.sp
                             )
@@ -750,7 +751,7 @@ fun LockerScreen(
                                                 if (viewModel.isPro) {
                                                     onSelectIncidentForSuit(incident)
                                                 } else {
-                                                    viewModel.speakText("Certified Suit Writer is a Pro feature. Opening paywall.")
+                                                    viewModel.speakText("The Complaint Writer is a Pro feature. Opening paywall.")
                                                     viewModel.navigateTo("upgrade")
                                                 }
                                             },

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -128,75 +129,90 @@ fun ReportGeneratorScreen(
 
     val eventDate = SimpleDateFormat("MMMM dd, yyyy 'at' hh:mm:ss a z", Locale.US).format(Date(incident.timestamp))
     
-    // Editable lawsuit parameters
-    var plaintiffName by remember { mutableStateOf("John Doe (" + context.getString(com.aistudio.driverrecorder.gpxrt.R.string.app_name) + " Owner)") }
-    var defendantName by remember { mutableStateOf(if (incident.defendantPlate.isNotEmpty() && incident.defendantPlate != "UNKNOWN PLATE") "Owner of Vehicle Plate [${incident.defendantPlate}]" else "Unknown Reckless Motorist") }
-    var emotionalDamagesVal by remember { mutableStateOf("$7,500.00") }
-    var safetyViolationByZone by remember { mutableStateOf(if (incident.speedMph >= incident.speedLimitMph + 8) "Yes (+8 MPH Violation)" else "Confirmed Dangerous Speed for Conditions") }
+    // Editable complaint parameters (saveable: rotation used to wipe a mid-edit draft)
+    var plaintiffName by rememberSaveable { mutableStateOf("John Doe (" + context.getString(com.aistudio.driverrecorder.gpxrt.R.string.app_name) + " Owner)") }
+    var defendantName by rememberSaveable { mutableStateOf(if (incident.defendantPlate.isNotEmpty() && incident.defendantPlate != "UNKNOWN PLATE") "Owner of Vehicle Plate [${incident.defendantPlate}]" else "Unknown Motorist") }
+    var emotionalDamagesVal by rememberSaveable { mutableStateOf("$7,500.00") }
+    var safetyViolationByZone by rememberSaveable { mutableStateOf(if (incident.speedMph >= incident.speedLimitMph + 8) "Yes (+8 MPH Violation)" else "Speed recorded for conditions") }
 
-    // Computes structured complaint draft text
+    // Computes structured complaint draft text.
+    // Deliberately factual: earlier versions asserted "calibrated"/"tamper-proof"
+    // hardware, auto-drafted a penalty-of-perjury certification, stamped a Java
+    // hashCode() as a "digital signature", and printed a hardcoded total that did
+    // not match its own line items — all removed.
     val legalDraftText = remember(plaintiffName, defendantName, emotionalDamagesVal, safetyViolationByZone, incident) {
+        val outOfPocket = 495.00
+        val punitive = 4500.00
+        val emotional = emotionalDamagesVal.replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: 0.0
+        val totalDemand = String.format(Locale.US, "%,.2f", outOfPocket + punitive + emotional)
+        val latHem = if (incident.latitude >= 0) "N" else "S"
+        val lonHem = if (incident.longitude >= 0) "E" else "W"
         """
         ========================================================================
-        EVIDENTIARY CIVIL DETAILED COMPLAINT DRAFT & POLICE OUTLINE
-        FOR TORTS, CIVIL RECKLESSNESS, AND ENDANGERMENT
+        DRAFT CIVIL COMPLAINT OUTLINE (SMALL CLAIMS) — PREPARED FROM APP LOGS
+        REVIEW, VERIFY, AND COMPLETE BEFORE ANY FILING. NOT LEGAL ADVICE.
         ========================================================================
-        
+
         IN THE COURT OF SMALL CLAIMS / CIVIL MUNICIPAL JURISDICTION
-        STATE / JURISDICTION: DECLARED OF OUTBOARD EVIDENCE
+        STATE / JURISDICTION: ____________________ (fill in before filing)
         COUNTY OF FILING: ${incident.county.uppercase()}
         CITY OF OCCURRENCE: ${incident.city.uppercase()}
-        
+
         ------------------------------------------------------------------------
         ${plaintiffName.uppercase()}
             Plaintiff,
-            
+
         vs.
-        
+
         ${defendantName.uppercase()}
             Defendant.
         ------------------------------------------------------------------------
-        
+
         CLAIM AND BILL OF PARTICULARS OUTLINE OF EVIDENCE:
-        
+
         1. STATEMENT OF JURISDICTION & VENUE:
-           On $eventDate, Plaintiff was operating their designated vehicle equipped with a calibrated telemetry-stamped dashcam recorder device, traveling on or near ${incident.streetOrHighway} in the City of ${incident.city}, County of ${incident.county}.
-           
-        2. WITNESSED FACTS OF RECKLESS DEVIOUS CONDUCT:
-           The Defendant, driving a ${if (incident.defendantCarModelColor.isNotEmpty()) incident.defendantCarModelColor else "vehicle described in telemetry captures"} (stamping Plate #${if (incident.defendantPlate.isNotEmpty()) incident.defendantPlate else "Pending Scan"}), engaged in extreme reckless driving behavior described as:
+           On $eventDate, Plaintiff was operating their vehicle with a dashcam app recording GPS speed, accelerometer readings, and timestamps, traveling on or near ${incident.streetOrHighway} in the City of ${incident.city}, County of ${incident.county}.
+
+        2. FACTS OBSERVED BY PLAINTIFF:
+           The Defendant, driving a ${if (incident.defendantCarModelColor.isNotEmpty()) incident.defendantCarModelColor else "vehicle (description to be completed)"} (Plate: ${if (incident.defendantPlate.isNotEmpty()) incident.defendantPlate else "not captured"}), was observed driving in a manner described as:
            >>> "${incident.recklessBehaviorObserved}"
-           
-        3. REAL-TIME SOLID STATE TELEMETRY EVIDENCE:
-           The onboard, tamper-proof recorder registered the following parameters matching the physics of the encounter:
-           - PLAINTIFF CALIBRATED SPEED: ${String.format("%.1f", incident.speedMph)} MPH
-           - ESTABLISHED ZONE SPEED LIMIT: ${incident.speedLimitMph} MPH
-           - SPEED DIRECT COMPLIANCE STATUS: $safetyViolationByZone
-           - DETECTED IMPACT / HARD-DECELERATION FORCE: ${String.format("%.2f", incident.maxGForce)} Gs (Onboard Tri-axial Accelerometer Log)
-           - PRECISE GPS COORDINATES FOR EVIDENCE CORROBORATION:
-             Latitude: ${incident.latitude}° North
-             Longitude: ${incident.longitude}° West
-             Chain-of-Custody Reference ID: ${incident.sessionFrameFolder}
-           
-        4. CAUSES OF ACTION:
-           COUNT I: NEGLIGENCE PER SE
-           By operating their vehicle in direct excess of established limits and/or in an erratic/dangerous manner during heavy traffic, Defendant breached their common law duty of reasonable care as a driver.
-           
-           COUNT II: RECKLESS ENDANGERMENT & INTENTIONAL INVOLVEMENT OF EXTREME EMOTIONAL DISTRESS
-           By tailgating/cutting-off Plaintiff, Defendant forced Plaintiff to engage in emergency, high-G-force evasive maneuvers (accelerometer peak: ${String.format("%.2f", incident.maxGForce)} Gs), presenting a direct, immediate threat of bodily harm and severe physical collisions.
-           
-        5. DEMAND FOR SPECIAL AND COMPENSATORY CIVIL DAMAGES:
+
+        3. TELEMETRY RECORDED BY PLAINTIFF'S DEVICE:
+           The app recorded the following at the time of the incident (consumer-device readings; not independently calibrated):
+           - RECORDED SPEED (GPS-derived): ${String.format(Locale.US, "%.1f", incident.speedMph)} MPH
+           - ZONE SPEED LIMIT (as configured by user): ${incident.speedLimitMph} MPH
+           - SPEED STATUS: $safetyViolationByZone
+           - PEAK ACCELEROMETER READING: ${String.format(Locale.US, "%.2f", incident.maxGForce)} G
+           - GPS COORDINATES:
+             Latitude: ${String.format(Locale.US, "%.6f", kotlin.math.abs(incident.latitude))}° $latHem
+             Longitude: ${String.format(Locale.US, "%.6f", kotlin.math.abs(incident.longitude))}° $lonHem
+             Session Reference ID: ${incident.sessionFrameFolder}
+
+        4. CAUSES OF ACTION (VERIFY ELEMENTS FOR YOUR JURISDICTION):
+           COUNT I: NEGLIGENCE
+           By operating their vehicle in excess of posted limits and/or in an erratic or dangerous manner, Defendant breached their duty of reasonable care as a driver.
+
+           COUNT II: RECKLESS ENDANGERMENT / EMOTIONAL DISTRESS
+           By tailgating or cutting off Plaintiff, Defendant forced Plaintiff into emergency evasive maneuvers (peak accelerometer reading: ${String.format(Locale.US, "%.2f", incident.maxGForce)} G), presenting an immediate threat of bodily harm.
+
+        5. DAMAGES DEMANDED (EDIT AMOUNTS TO YOUR ACTUAL LOSSES):
            Plaintiff demands judgment against the Defendant in the amount of:
-           - Out-of-pocket, hard brake tire wear & camera wear: $495.00
-           - Punitive damages for wilful/wanton endangerment: $4,500.00
-           - Mental suffering and fear of severe collision: $emotionalDamagesVal
-           
-           TOTAL CIVIL RELIEF DEMANDED: $7,995.00
-           
+           - Out-of-pocket costs: ${'$'}${String.format(Locale.US, "%,.2f", outOfPocket)}
+           - Punitive damages (where permitted): ${'$'}${String.format(Locale.US, "%,.2f", punitive)}
+           - Emotional distress: $emotionalDamagesVal
+
+           TOTAL CIVIL RELIEF DEMANDED: ${'$'}$totalDemand
+
         ------------------------------------------------------------------------
-        VERIFICATION & CERTIFICATION OF TELEMETRIES:
-        Plaintiff certifies under penalty of perjury under the laws of civil small claims courts that the above stamped coordinates, G-sensor spikes, speeds, and timestamps are authentic as direct, unedited electronic logs from the "Driver Recorder" platform.
-        
-        STAMPED SIGNATURE: Digital Chain-of-Custody Locked. Code [${incident.sessionFrameFolder.hashCode()}]
+        ABOUT THE ATTACHED LOGS:
+        The speeds, coordinates, accelerometer readings, and timestamps above were
+        recorded by the Good Drivers Defender app on the Plaintiff's own device at
+        the time of the incident. They are consumer-device readings provided as
+        supporting documentation; the Plaintiff should verify all statements
+        personally before signing or filing anything.
+
+        THIS DRAFT WAS GENERATED BY AN APP AND IS NOT LEGAL ADVICE. CONSULT A
+        LICENSED ATTORNEY OR YOUR COURT'S SELF-HELP RESOURCES BEFORE FILING.
         ------------------------------------------------------------------------
         """.trimIndent()
     }
@@ -237,13 +253,13 @@ fun ReportGeneratorScreen(
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
-                    text = "LOCKED TELEMETRY INTEGRITY FIXED",
+                    text = "DRAFT FROM YOUR RECORDED TELEMETRY",
                     color = Color.Red,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    text = "Small Claims Courts accept solid sensor Logs as prima facie proof of Defendant's erratic traffic velocities and speed limit transgressions.",
+                    text = "Builds a complaint outline from this incident's logs. Review and verify everything before filing — this is a starting draft, not legal advice, and courts weigh evidence at their own discretion.",
                     color = Color.LightGray,
                     fontSize = 10.sp
                 )

@@ -41,8 +41,10 @@ fun ParkingSentryScreen(
     val incidents by viewModel.allIncidents.collectAsState()
     val events = incidents.filter { it.isAutoCaptured }.sortedByDescending { it.timestamp }
 
-    var armed by remember { mutableStateOf(true) }
-    var sensitivity by remember { mutableStateOf("MEDIUM") }
+    // Armed state + sensitivity live in the ViewModel where the actual accelerometer
+    // monitoring runs — a local remember'd flag armed nothing and reset on navigation.
+    val armed by viewModel.sentryArmed.collectAsState()
+    val sensitivity by viewModel.sentrySensitivity.collectAsState()
 
     val sweep = rememberInfiniteTransition(label = "radar")
     val angle by sweep.animateFloat(
@@ -100,7 +102,7 @@ fun ParkingSentryScreen(
                 Spacer(Modifier.height(6.dp))
                 Text(if (armed) "SENTRY ARMED" else "SENTRY OFF", color = accent, fontWeight = FontWeight.Black, fontSize = 16.sp)
                 Text(
-                    if (armed) "Monitoring for impacts" else "Tap arm to protect",
+                    if (armed) "Monitoring impacts — keep the app open" else "Tap arm to protect",
                     color = Color(0xFF94A3B8), fontSize = 10.sp
                 )
             }
@@ -118,7 +120,7 @@ fun ParkingSentryScreen(
                         .clip(RoundedCornerShape(8.dp))
                         .background(if (sel) Color(0xFF1D4ED8) else Color(0xFF1E293B))
                         .border(1.dp, if (sel) Color(0xFF60A5FA) else Color.Transparent, RoundedCornerShape(8.dp))
-                        .clickable { sensitivity = level }
+                        .clickable { viewModel.setSentrySensitivity(level) }
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -129,7 +131,7 @@ fun ParkingSentryScreen(
 
         Spacer(Modifier.height(16.dp))
         Button(
-            onClick = { armed = !armed },
+            onClick = { viewModel.setSentryArmed(!armed) },
             modifier = Modifier.fillMaxWidth().height(52.dp),
             colors = ButtonDefaults.buttonColors(containerColor = if (armed) Color(0xFF991B1B) else Color(0xFF15803D)),
             shape = RoundedCornerShape(12.dp)
@@ -141,7 +143,9 @@ fun ParkingSentryScreen(
         Text("DETECTED IMPACTS (${events.size})", color = Color(0xFF94A3B8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         if (events.isEmpty()) {
-            Text("No impacts detected. Your vehicle is clear.", color = Color(0xFF64748B), fontSize = 12.sp)
+            // No false "your vehicle is clear" assurance — the sentry only knows
+            // about impacts that happened while it was armed and the app was open.
+            Text("No impacts recorded while armed.", color = Color(0xFF64748B), fontSize = 12.sp)
         } else {
             events.take(4).forEach { ev ->
                 val t = SimpleDateFormat("MMM d • h:mm a", Locale.US).format(java.util.Date(ev.timestamp))

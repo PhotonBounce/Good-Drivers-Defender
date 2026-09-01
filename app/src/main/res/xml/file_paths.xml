@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <files-path name="internal_files" path="." />
+    <!-- Narrowed to what is actually shared: evidence media + cache-built exports.
+         The previous root-scope files-path exposed ALL of internal files/, and the
+         external-path grant was never used by any code path. -->
+    <files-path name="evidence" path="evidence_media/" />
     <cache-path name="cache_files" path="." />
-    <external-path name="external_files" path="." />
 </paths>

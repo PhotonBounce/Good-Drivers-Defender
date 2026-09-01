@@ -106,8 +106,13 @@ fun AudioWaveVisualizer(
 fun LiveStampTimeText(hasGpsFix: Boolean) {
     var liveStampTime by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
+        // Label says UTC, so format in UTC — this stamp previously showed LOCAL time
+        // under the "chain-of-custody" banner, off by the device's UTC offset.
+        val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
         while (true) {
-            liveStampTime = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
+            liveStampTime = fmt.format(Date())
             delay(33L)
         }
     }
@@ -278,7 +283,7 @@ fun DashboardScreen(
     val recordingMode by viewModel.recordingMode.collectAsState()
     val riskLevel by viewModel.riskLevel.collectAsState()
 
-    var showReportDialog by remember { mutableStateOf(false) }
+    var showReportDialog by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var showOverrideDialog by remember { mutableStateOf(false) }
     var showRightsDialog by remember { mutableStateOf(false) }
     var isMirrorMode by remember { mutableStateOf(false) }
@@ -1042,7 +1047,8 @@ fun DashboardScreen(
                 // PREMIUM CYBER-NEON "VIEW LAST RECORDING (IN-APP PREVIEW)" BUTTON
                 Button(
                     onClick = {
-                        viewModel.openEvidenceFolderInSystem(context)
+                        // In-app preview only — this also fired an external "open folder"
+                        // intent whose picker could cover the very preview the label promises.
                         showLastRecordingDialog = true
                     },
                     modifier = Modifier
@@ -1101,14 +1107,17 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
+                                // Hemisphere derived from sign (was hardcoded "° N"/"° W",
+                                // rendering double-signed/wrong values outside the NW quadrant);
+                                // Locale.US keeps the decimal point on comma-locale devices.
                                 Text(
-                                    "LAT: ${String.format("%.6f", latitude)}° N",
+                                    "LAT: ${String.format(Locale.US, "%.6f", kotlin.math.abs(latitude))}° ${if (latitude >= 0) "N" else "S"}",
                                     color = Color.White,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
                                 Text(
-                                    "LON: ${String.format("%.6f", longitude)}° W",
+                                    "LON: ${String.format(Locale.US, "%.6f", kotlin.math.abs(longitude))}° ${if (longitude >= 0) "E" else "W"}",
                                     color = Color.White,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace
@@ -1281,10 +1290,12 @@ fun DashboardScreen(
 
         // QUICK RECKLESS VIOLATOR INCIDENT RECORDER DIALOG
         if (showReportDialog) {
-            var plateNumber by remember { mutableStateOf("") }
-            var vehicleDetails by remember { mutableStateOf("") }
-            var selectedBehavior by remember { mutableStateOf("Reckless Cut-off / Lane Change") }
-            var extraNotes by remember { mutableStateOf("") }
+            // Saveable: an auto-rotation in a car mount used to close the dialog and
+            // discard everything the user had typed about the violator.
+            var plateNumber by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+            var vehicleDetails by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+            var selectedBehavior by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("Reckless Cut-off / Lane Change") }
+            var extraNotes by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
 
             val behaviors = listOf(
                 "Tailgating / Dangerous Proximity",
@@ -1326,7 +1337,7 @@ fun DashboardScreen(
                         OutlinedTextField(
                             value = plateNumber,
                             onValueChange = { plateNumber = it.uppercase() },
-                            label = { Text("Licence Plate (e.g. 7XYZ99)") },
+                            label = { Text("License Plate (e.g. 7XYZ99)") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                             colors = TextFieldDefaults.colors(
@@ -1899,7 +1910,14 @@ fun DashboardScreen(
 
         // INTERACTIVE IN-APP PLAYBACK PREVIEW DIALOG FOR LAST RECORDING
         if (showLastRecordingDialog) {
-            val lastInfo = remember(showLastRecordingDialog) { viewModel.getLastRecordingInfo() }
+            // Loaded off the main thread — getLastRecordingInfo() walks the evidence dir
+            // (listFiles + stat), which previously ran synchronously during composition.
+            var lastInfo by remember { mutableStateOf<com.example.viewmodel.LastRecordingInfo?>(null) }
+            LaunchedEffect(showLastRecordingDialog) {
+                lastInfo = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    viewModel.getLastRecordingInfo()
+                }
+            }
             val matchingIncidents = remember(lastInfo, incidents) {
                 if (lastInfo != null) {
                     incidents.filter { it.sessionFrameFolder == lastInfo.tripId }

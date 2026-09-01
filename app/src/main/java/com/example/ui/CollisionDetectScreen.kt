@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,9 +34,11 @@ private const val IMPACT_THRESHOLD_G = 3.5f
 private const val AUTO_ALERT_SECONDS = 15
 
 /**
- * Collision Detection — continuously watches the live G-force; a spike past the impact threshold flips
- * the screen into a full-screen crash alert with a countdown that will auto-send an emergency location
- * alert unless the driver taps "I'M OK". Tapping "SEND HELP" fires immediately.
+ * Collision Detection — watches the live G-force WHILE THIS SCREEN IS OPEN; a spike past the
+ * impact threshold flips into a full-screen crash alert with a countdown that PREPARES an
+ * emergency location alert (opens the share sheet) unless the driver taps "I'M OK". A share
+ * still requires the user to pick a recipient — this is deliberately not an unattended
+ * auto-send (that would need SMS permission + a configured emergency contact).
  */
 @Composable
 fun CollisionDetectScreen(
@@ -47,9 +50,11 @@ fun CollisionDetectScreen(
     val lon by viewModel.longitude.collectAsState()
     val context = LocalContext.current
 
-    var impact by remember { mutableStateOf(false) }
-    var peakG by remember { mutableStateOf(0.0) }
-    var countdown by remember { mutableStateOf(AUTO_ALERT_SECONDS) }
+    // Saveable: a rotation mid-countdown used to silently reset an ACTIVE crash alert
+    // back to idle monitoring — in the very scenario (a crash) where rotation is likely.
+    var impact by rememberSaveable { mutableStateOf(false) }
+    var peakG by rememberSaveable { mutableStateOf(0.0) }
+    var countdown by rememberSaveable { mutableStateOf(AUTO_ALERT_SECONDS) }
 
     // Detect impact from the live G stream
     LaunchedEffect(gForce) {
@@ -65,12 +70,14 @@ fun CollisionDetectScreen(
     fun sendAlert() {
         // Guard against a bogus (0,0) "Null Island" link when GPS has no fix yet.
         val hasFix = kotlin.math.abs(lat) > 0.0001 || kotlin.math.abs(lon) > 0.0001
+        // Locale.US: default-locale formatting renders comma decimals (48,137154) in
+        // much of the world, producing a broken maps link in an actual emergency.
         val locationLine = if (hasFix)
-            "Location: https://maps.google.com/?q=${"%.6f".format(lat)},${"%.6f".format(lon)}"
+            "Location: https://maps.google.com/?q=${"%.6f".format(java.util.Locale.US, lat)},${"%.6f".format(java.util.Locale.US, lon)}"
         else
             "Location: GPS fix unavailable — please call to check on me."
-        val msg = "🚨 AUTOMATIC COLLISION ALERT — a high-impact event (${"%.1f".format(peakG)}G) was detected.\n" +
-            "$locationLine\n— Sent automatically by Good Drivers Defender"
+        val msg = "🚨 COLLISION ALERT — a high-impact event (${"%.1f".format(java.util.Locale.US, peakG)}G) was detected.\n" +
+            "$locationLine\n— Sent via Good Drivers Defender"
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, msg)
@@ -112,7 +119,7 @@ private fun CollisionMonitor(gForce: Double, onBack: () -> Unit, onSimulate: () 
             ImpactGauge(current = gForce.toFloat(), threshold = IMPACT_THRESHOLD_G, alert = false)
             Spacer(Modifier.height(20.dp))
             Text("MONITORING FOR IMPACT", color = Color(0xFF22C55E), fontWeight = FontWeight.Black, fontSize = 16.sp)
-            Text("Auto-alert triggers above ${IMPACT_THRESHOLD_G}G", color = Color(0xFF94A3B8), fontSize = 12.sp)
+            Text("Alert prepares above ${IMPACT_THRESHOLD_G}G — while this screen is open", color = Color(0xFF94A3B8), fontSize = 12.sp)
         }
         Spacer(Modifier.weight(1f))
         OutlinedButton(
@@ -143,7 +150,7 @@ private fun CollisionAlert(peakG: Double, countdown: Int, onOk: () -> Unit, onHe
         Spacer(Modifier.height(28.dp))
         ImpactGauge(current = peakG.toFloat(), threshold = IMPACT_THRESHOLD_G, alert = true)
         Spacer(Modifier.height(20.dp))
-        Text("Auto-alerting in", color = Color(0xFFFCA5A5), fontSize = 14.sp)
+        Text("Preparing alert to share in", color = Color(0xFFFCA5A5), fontSize = 14.sp)
         Text("$countdown", color = Color.White, fontSize = 72.sp, fontWeight = FontWeight.Black, fontFamily = FontFamily.Monospace)
         Text("seconds", color = Color(0xFFFCA5A5), fontSize = 13.sp)
         Spacer(Modifier.weight(1f))

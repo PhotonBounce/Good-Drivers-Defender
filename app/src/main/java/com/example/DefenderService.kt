@@ -19,6 +19,8 @@ class DefenderService : Service() {
     companion object {
         private const val CHANNEL_ID = "DefenderServiceChannel"
         private const val NOTIFICATION_ID = 9001
+        private const val WAKE_WINDOW_MS = 60 * 60 * 1000L      // safety cap per acquisition
+        private const val RENEW_INTERVAL_MS = 30 * 60 * 1000L   // refresh well before the cap
         
         fun startService(context: Context) {
             val intent = Intent(context, DefenderService::class.java).apply {
@@ -45,39 +47,71 @@ class DefenderService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action
-        if (action == "START") {
-            acquireWakeLock()
-            val notification = buildNotification()
-            try {
-                if (Build.VERSION.SDK_INT >= 34) {
-                    startForeground(
-                        NOTIFICATION_ID,
-                        notification,
-                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
-                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                    )
-                } else {
-                    startForeground(NOTIFICATION_ID, notification)
-                }
-            } catch (e: Exception) {
-                // Permission revoked or FGS restriction — stop safely instead of crashing
-                android.util.Log.e("DefenderService", "startForeground failed: ${e.message}")
-                releaseWakeLock()
-                stopSelf()
-                return START_NOT_STICKY
-            }
-        } else if (action == "STOP") {
-            releaseWakeLock()
-            @Suppress("DEPRECATION")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                stopForeground(true)
-            }
-            stopSelf()
+        if (intent == null) {
+            // Sticky restart after process death: the capture pipeline lived in the
+            // (now dead) ViewModel and cannot resume from here — don't linger as a
+            // zombie service that never calls startForeground.
+            shutDownCompletely()
+            return START_NOT_STICKY
         }
-        return START_STICKY
+        when (intent.action) {
+            "START" -> {
+                acquireWakeLock()
+                val notification = buildNotification()
+                try {
+                    if (Build.VERSION.SDK_INT >= 34) {
+                        startForeground(
+                            NOTIFICATION_ID,
+                            notification,
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
+                            android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                        )
+                    } else {
+                        startForeground(NOTIFICATION_ID, notification)
+                    }
+                } catch (e: Exception) {
+                    // Permission revoked or FGS restriction — stop safely instead of crashing
+                    android.util.Log.e("DefenderService", "startForeground failed: ${e.message}")
+                    shutDownCompletely()
+                    return START_NOT_STICKY
+                }
+            }
+            "STOP" -> shutDownCompletely()
+        }
+        // Recording cannot survive process death in this architecture, so never ask
+        // the system to restart us into a do-nothing state.
+        return START_NOT_STICKY
+    }
+
+    /**
+     * Task removed = the ViewModel that owns ALL capture is being torn down. Without
+     * this, the swiped-away app kept showing "Recording active" (holding a wake lock)
+     * over a completely dead pipeline — a false promise of protection.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        shutDownCompletely()
+        super.onTaskRemoved(rootIntent)
+    }
+
+    private fun shutDownCompletely() {
+        releaseWakeLock()
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            stopForeground(true)
+        }
+        stopSelf()
+    }
+
+    private val wakeLockHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val wakeLockRenewer = object : Runnable {
+        override fun run() {
+            // acquire() on a non-ref-counted held lock refreshes its timeout window —
+            // the previous fixed 1h cap silently lapsed mid-trip on longer drives.
+            wakeLock?.acquire(WAKE_WINDOW_MS)
+            wakeLockHandler.postDelayed(this, RENEW_INTERVAL_MS)
+        }
     }
 
     private fun acquireWakeLock() {
@@ -86,13 +120,15 @@ class DefenderService : Service() {
             wakeLock = powerManager.newWakeLock(
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "GoodDriversDefender::BackgroundProtectionWakeLock"
-            ).apply {
-                acquire(60 * 60 * 1000L) // 1h safety cap — renewed by next START if still recording
-            }
+            ).apply { setReferenceCounted(false) }
         }
+        wakeLock?.acquire(WAKE_WINDOW_MS)
+        wakeLockHandler.removeCallbacks(wakeLockRenewer)
+        wakeLockHandler.postDelayed(wakeLockRenewer, RENEW_INTERVAL_MS)
     }
 
     private fun releaseWakeLock() {
+        wakeLockHandler.removeCallbacks(wakeLockRenewer)
         wakeLock?.let {
             if (it.isHeld) {
                 it.release()
@@ -118,7 +154,9 @@ class DefenderService : Service() {
             // Foreground-service notification must honestly disclose active data access
             // (Play policy for FGS type location|microphone). Tell the user recording is on.
             .setContentTitle("Recording active — Good Drivers Defender")
-            .setContentText("GPS, camera & microphone are in use to record your drive. Tap to open.")
+            // Camera capture is bound to the app UI, not this service — the notification
+            // must not over-claim what runs in the background (GPS + microphone).
+            .setContentText("GPS & microphone are recording your drive. Tap to open.")
             .setSmallIcon(android.R.drawable.ic_menu_compass)
             .setContentIntent(pendingIntent)
             .setOngoing(true)

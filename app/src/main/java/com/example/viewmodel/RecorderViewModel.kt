@@ -2,7 +2,6 @@ package com.example.viewmodel
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.media.MediaScannerConnection
 import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -26,6 +25,7 @@ import com.example.data.RecorderDatabase
 import com.example.data.TripPoint
 import com.google.android.gms.location.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -59,14 +59,27 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     private val repository = EvidenceRepository(database.recorderDao())
 
     private var billingManager: BillingManager? = null
+    private var billingCollectJob: Job? = null
 
     fun setBillingManager(manager: BillingManager) {
         billingManager = manager
         // Mirror the real Google Play subscription state into our exposed state so that
         // every isPro / subscriptionState consumer reflects actual, acknowledged purchases.
-        viewModelScope.launch {
+        // MainActivity recreates its BillingManager on every configuration change, so
+        // cancel the previous mirror first: stacking collectors leaks each dead manager
+        // AND lets the fresh manager's initial isLoading(isPro=false) snapshot flash a
+        // paying user back to the free tier mid-rotation.
+        billingCollectJob?.cancel()
+        billingCollectJob = viewModelScope.launch {
             manager.subscriptionState.collect { state ->
-                _subscriptionState.value = state
+                if (!state.isLoading) {
+                    _subscriptionState.value = state
+                    // A mid-trip upgrade must immediately disarm the free 30-min cap.
+                    if (state.isPro) freeTripCapJob?.cancel()
+                } else if (_subscriptionState.value.isLoading) {
+                    // Only mirror "still loading" while we never had a real answer.
+                    _subscriptionState.value = state
+                }
             }
         }
     }
@@ -130,29 +143,26 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
             val recording = capture.output
                 .prepareRecording(getApplication(), outputOptions)
                 .apply {
-                    // Request audio track alongside video
-                    withAudioEnabled()
+                    // Audio track only when the runtime grant exists — CameraX throws
+                    // SecurityException from withAudioEnabled() otherwise, which used
+                    // to silently kill the whole clip for camera-only users.
+                    if (ContextCompat.checkSelfPermission(
+                            getApplication(), android.Manifest.permission.RECORD_AUDIO
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ) {
+                        withAudioEnabled()
+                    }
                 }
                 .start(ContextCompat.getMainExecutor(getApplication())) { event ->
                     when (event) {
                         is VideoRecordEvent.Start -> { /* recording started */ }
                         is VideoRecordEvent.Finalize -> {
-                    // Save reference to the file and make it visible to other apps
-                    _lastVideoFile.value = file
-                            // Notify MediaScanner so the file appears in gallery apps immediately
-                            MediaScannerConnection.scanFile(
-                                getApplication(),
-                                arrayOf(file.absolutePath),
-                                arrayOf("video/mp4"),
-                                null
-                            )
+                            // Only a successful clip becomes "last video". Evidence stays in
+                            // app-private storage; users export copies explicitly from the
+                            // locker (auto-copying to public Downloads contradicted the
+                            // "saved to Downloads when you export" privacy promise).
                             if (!event.hasError()) {
                                 _lastVideoFile.value = file
-                                // Automatically save a copy to public Downloads for instant user visibility!
-                                val displayName = "incident_${incidentId}_video_${System.currentTimeMillis()}.mp4"
-                                // Save a copy to the public Downloads collection via MediaStore (no WRITE permission required on Android 10+)
-                                saveFileToPublicDownloads(getApplication(), file, displayName, "video/mp4")
-                                // Refresh saved videos list
                                 refreshSavedVideos()
                             }
                         }
@@ -230,15 +240,18 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun stopAudioRecording() {
+        val recorder = mediaRecorder
+        mediaRecorder = null
+        if (recorder == null) return
         try {
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
+            // stop() throws RuntimeException when no valid frames were captured
+            // (e.g. stopped immediately after start) — release() must still run
+            // or the native recorder + mic handle leak for the process lifetime.
+            recorder.stop()
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
-            mediaRecorder = null
+            runCatching { recorder.release() }
         }
     }
 
@@ -318,6 +331,21 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         _trialDaysRemaining.value = trialManager.daysRemaining()
     }
 
+    init {
+        // This app stays foregrounded for hours (FLAG_KEEP_SCREEN_ON dash mount), so a
+        // day-7 trial can lapse mid-session; without a periodic re-check isProFlow goes
+        // stale and composition gates disagree with the live isPro getter.
+        viewModelScope.launch {
+            while (true) {
+                delay(60_000L)
+                refreshTrial()
+            }
+        }
+        // Populate the video gallery from disk — previously only a NEW clip's finalize
+        // callback refreshed the list, so every app restart showed "No saved videos".
+        viewModelScope.launch(Dispatchers.IO) { refreshSavedVideos() }
+    }
+
     // Pro entitlement = a real, acknowledged Google Play subscription (mirrored from
     // BillingManager) OR an active 7-day VIP trial. The debug override only applies in
     // debug builds. Use this synchronous getter from event handlers (onClick etc.) where
@@ -348,28 +376,41 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
 
     private var freeTripCapJob: kotlinx.coroutines.Job? = null
 
-    // Daily incident count for free-tier limit (resets at midnight)
-    private var incidentDayKey: String = ""
-    private var incidentDayCount: Int = 0
+    // True after any stop that happened while the vehicle was still moving; blocks
+    // motion automation from instantly restarting the session (see handleMotionAutomation).
+    private var motionRestartSuppressed = false
+
+    // Daily incident count for the free-tier limit. Persisted — in-memory counters made
+    // the cap "3 per app launch": any process death (routine for a backgrounded dashcam)
+    // silently reset it.
     private val FREE_DAILY_INCIDENT_LIMIT = 3
+    private val capPrefs = application.getSharedPreferences("free_caps_v1", Context.MODE_PRIVATE)
 
     private fun canLogIncident(): Boolean {
         if (isPro) return true
         val today = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
-        if (today != incidentDayKey) {
-            incidentDayKey = today
-            incidentDayCount = 0
+        if (capPrefs.getString("incident_day", "") != today) {
+            capPrefs.edit().putString("incident_day", today).putInt("incident_count", 0).apply()
         }
-        return incidentDayCount < FREE_DAILY_INCIDENT_LIMIT
+        return capPrefs.getInt("incident_count", 0) < FREE_DAILY_INCIDENT_LIMIT
     }
 
     private fun incrementDailyCount() {
-        incidentDayCount++
+        capPrefs.edit().putInt("incident_count", capPrefs.getInt("incident_count", 0) + 1).apply()
     }
     // ─────────────────────────────────────────────────────────────────────────
 
     fun navigateTo(route: String) {
         _currentRoute.value = route
+    }
+
+    // Complaint-writer selection, held as an id so it survives Activity recreation;
+    // the UI re-resolves the record from allIncidents.
+    private val _activeSuitIncidentId = MutableStateFlow<Long?>(null)
+    val activeSuitIncidentId: StateFlow<Long?> = _activeSuitIncidentId.asStateFlow()
+
+    fun setActiveSuitIncident(id: Long?) {
+        _activeSuitIncidentId.value = id
     }
 
     // Telemetry and Real-Time State
@@ -545,6 +586,9 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
             navigateTo("upgrade")
             return
         }
+        // Count synchronously with the check — incrementing after the suspend point let a
+        // burst of taps pass the gate 6 times before the first increment landed.
+        incrementDailyCount()
         viewModelScope.launch {
             val streetName = if (_manualOverriddenStreet.value.isNotEmpty()) _manualOverriddenStreet.value else _street.value
             val countyName = if (_manualOverriddenCounty.value.isNotEmpty()) _manualOverriddenCounty.value else _county.value
@@ -563,18 +607,24 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
                 streetOrHighway = finalStreet,
                 city = _city.value.ifEmpty { "Offline Zone" },
                 county = finalCounty,
-                defendantPlate = "MANUAL ACTIVE SNAPSHOT",
-                defendantCarModelColor = "SECURED VIDEO LOG",
-                recklessBehaviorObserved = "Immediate Citizen Safety Log",
-                extraNotes = "Driver manually pressed immediate telemetry capture to lock this record in evidentiary memory. Dual camera frames and ambient audio active.",
+                // Leave identification fields empty — sentinel strings here previously
+                // leaked into generated complaint drafts as the literal defendant
+                // ("Owner of Vehicle Plate [MANUAL ACTIVE SNAPSHOT]").
+                defendantPlate = "",
+                defendantCarModelColor = "",
+                recklessBehaviorObserved = "Immediate manual capture",
+                extraNotes = "Driver manually triggered an immediate telemetry capture. Snapshot and clip recording were requested at the moment of capture.",
                 sessionFrameFolder = tripFolder
             )
             val insertedId = repository.insertIncident(incident)
             captureSnapshotForIncident(insertedId)
-            incrementDailyCount()
             speakText("Incident recorded now! Evidence locked.")
         }
     }
+
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(getApplication(), permission) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
 
     private fun startRecordingSession() {
         val tripId = "TRIP_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -583,17 +633,30 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         tripStartTimeMs = System.currentTimeMillis()
         _activeTripId.value = tripId
         _isRecording.value = true
+        motionRestartSuppressed = false
+        registerLocationUpdates() // switch GPS to high-rate session tracking
         speakText("Recording started. Telemetry stamped.")
         startAudioRecording(tripId)
-        try {
-            com.example.DefenderService.startService(getApplication())
-        } catch (e: Exception) {
-            e.printStackTrace()
+        // The FGS declares location|microphone types; starting it without BOTH runtime
+        // grants throws SecurityException on Android 14+ (and can crash with
+        // RemoteServiceException even when caught inside the service). Only start it
+        // when the grants exist — the in-app session still runs without it.
+        val fgsPermitted = hasPermission(android.Manifest.permission.RECORD_AUDIO) &&
+            (hasPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ||
+                hasPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION))
+        if (fgsPermitted) {
+            try {
+                com.example.DefenderService.startService(getApplication())
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         if (!isPro) {
             freeTripCapJob = viewModelScope.launch {
                 delay(30 * 60 * 1000L) // 30 minutes free limit
-                if (_isRecording.value) {
+                // Re-check entitlement at fire time — the user may have upgraded (or the
+                // billing collector may have already cancelled this job) mid-trip.
+                if (_isRecording.value && !isPro) {
                     speakText("Free trip duration limit reached. Upgrade to Pro for unlimited recording.")
                     stopRecordingSession()
                 }
@@ -604,6 +667,10 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     private fun stopRecordingSession() {
         freeTripCapJob?.cancel()
         freeTripCapJob = null
+        // Any stop while the vehicle is still moving must suppress motion auto-restart:
+        // previously auto-capture re-armed within ~1s of a manual STOP (or of the free
+        // 30-min cap firing), so the mic could not actually be turned off above 2 mph.
+        motionRestartSuppressed = true
         val stoppedTripId = _activeTripId.value
 
         // Update adaptive Q-score with this trip's raw score before clearing state
@@ -617,6 +684,7 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
 
         _isRecording.value = false
         _activeTripId.value = null
+        registerLocationUpdates() // relax GPS back to idle rate
         speakText("Recording stopped. Exporting telemetry.")
         stopAudioRecording()
         // Auto-export GPS telemetry CSV so every trip has a ready-to-share log
@@ -699,11 +767,6 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
 
     @SuppressLint("MissingPermission")
     private fun setupLocationTracker() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L).apply {
-            setMinUpdateIntervalMillis(500L)
-            setGranularity(Granularity.GRANULARITY_FINE)
-        }.build()
-
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 val lastLocation = result.lastLocation ?: return
@@ -746,15 +809,64 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
+        registerLocationUpdates()
+    }
+
+    private fun hasLocationPermission(): Boolean =
+        hasPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ||
+            hasPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+
+    /**
+     * (Re)register GPS updates at a rate matching the session state. Safe to call
+     * repeatedly. High-rate fine tracking runs only while a session records; a relaxed
+     * request keeps the idle dashboard live without continuous 2 Hz fine-location
+     * collection from app launch (matches the privacy policy's session-scoped wording).
+     */
+    @SuppressLint("MissingPermission")
+    private fun registerLocationUpdates() {
+        val callback = locationCallback ?: return
+        if (!hasLocationPermission()) {
+            _street.value = "GPS Active (Permission Pending)"
+            return
+        }
+        val request = if (_isRecording.value) {
+            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L).apply {
+                setMinUpdateIntervalMillis(500L)
+                setGranularity(Granularity.GRANULARITY_FINE)
+            }.build()
+        } else {
+            LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 3000L).apply {
+                setMinUpdateIntervalMillis(2000L)
+            }.build()
+        }
         try {
-            fusedLocationClient?.requestLocationUpdates(locationRequest, locationCallback!!, Looper.getMainLooper())
+            fusedLocationClient?.removeLocationUpdates(callback)
+            fusedLocationClient?.requestLocationUpdates(request, callback, Looper.getMainLooper())
         } catch (e: Exception) {
             _street.value = "GPS Active (Permission Pending)"
         }
     }
 
-    // Fallback dictionary for fully offline speeds / reverse names
+    /**
+     * Call when runtime permissions become granted. The init-time registration runs
+     * before the permission dialog, gets rejected, and was previously never retried —
+     * leaving every fresh install's first session with speed 0 and incidents at (0,0).
+     */
+    fun onLocationPermissionsGranted() {
+        registerLocationUpdates()
+    }
+
+    private var lastGeocodeMs = 0L
+
+    // Reverse geocoding goes through the device geocoder, which is network-backed via
+    // Play services on most devices — throttle it so coordinates aren't shipped out at
+    // GPS rate. The street/county label doesn't need sub-30-second freshness.
     private fun lookupAddress(loc: Location) {
+        val now = System.currentTimeMillis()
+        val needsInitial = _street.value.isEmpty() ||
+            _street.value.startsWith("Determining") || _street.value.startsWith("GPS Active")
+        if (!needsInitial && now - lastGeocodeMs < 30_000L) return
+        lastGeocodeMs = now
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 if (Geocoder.isPresent()) {
@@ -797,13 +909,17 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         if (speedMph >= 2.0) {
             // Cancel idle timer since there is motion
             idleHandler.removeCallbacks(idleTimeoutRunnable)
-            
-            // Motion detected - autostart recording if inactive
-            if (!_isRecording.value) {
+
+            // Motion detected - autostart recording if inactive, UNLESS a stop happened
+            // while still moving (manual STOP or the free 30-min cap): auto-restart is
+            // suppressed until the vehicle actually comes to rest, so stopping sticks.
+            if (!_isRecording.value && !motionRestartSuppressed) {
                 startRecordingSession()
                 speakText("Motion registered. Auto-capture engaged.")
             }
         } else {
+            // Vehicle at rest — a completed stop re-arms motion automation.
+            motionRestartSuppressed = false
             // Stationary - start the 30-sec countdown to prevent storage exhaustion
             if (_isRecording.value) {
                 idleHandler.removeCallbacks(idleTimeoutRunnable)
@@ -813,6 +929,59 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     }
 
     // Accelerometer checks for sudden braking and crash triggers
+    // ─── Parking Sentry: armed impact monitoring (runs while the app is open) ──
+    // The screen used to be pure theater — a local "armed" flag wired to nothing,
+    // filtering on an isAutoCaptured field no code ever set. Armed state now lives
+    // here and real accelerometer spikes create real auto-captured incidents.
+    private val _sentryArmed = MutableStateFlow(false)
+    val sentryArmed: StateFlow<Boolean> = _sentryArmed.asStateFlow()
+    private val _sentrySensitivity = MutableStateFlow("MEDIUM")
+    val sentrySensitivity: StateFlow<String> = _sentrySensitivity.asStateFlow()
+    private var lastSentryHitMs = 0L
+
+    fun setSentryArmed(armed: Boolean) {
+        _sentryArmed.value = armed
+        speakText(if (armed) "Parking Sentry armed." else "Parking Sentry disarmed.")
+    }
+
+    fun setSentrySensitivity(level: String) {
+        _sentrySensitivity.value = level
+    }
+
+    private fun sentryThresholdG(): Double = when (_sentrySensitivity.value) {
+        "HIGH" -> 1.3  // most sensitive
+        "LOW" -> 2.2
+        else -> 1.7
+    }
+
+    private fun handleSentryImpact(gValue: Double) {
+        if (!_sentryArmed.value) return
+        val now = System.currentTimeMillis()
+        if (gValue < sentryThresholdG() || now - lastSentryHitMs < 10_000L) return
+        lastSentryHitMs = now
+        viewModelScope.launch {
+            val incident = IncidentRecord(
+                speedMph = _currentSpeed.value,
+                speedLimitMph = _targetSpeedLimit.value,
+                maxGForce = kotlin.math.round(gValue * 100.0) / 100.0,
+                latitude = _latitude.value,
+                longitude = _longitude.value,
+                streetOrHighway = _street.value,
+                city = _city.value.ifEmpty { "Offline Zone" },
+                county = _county.value.ifEmpty { "County Unresolved" },
+                defendantPlate = "",
+                defendantCarModelColor = "",
+                recklessBehaviorObserved = "Parking Sentry impact detection",
+                extraNotes = "Impact registered automatically while Parking Sentry was armed.",
+                sessionFrameFolder = _activeTripId.value ?: ("SENTRY_" + now),
+                isAutoCaptured = true
+            )
+            val id = repository.insertIncident(incident)
+            captureSnapshotForIncident(id)
+            speakText("Impact detected. Sentry incident recorded.")
+        }
+    }
+
     override fun onSensorChanged(event: SensorEvent?) {
         if (event == null || event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
         if (event.values.size < 3) return // guard against short sensor payloads
@@ -826,6 +995,8 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         val gValue = (currentAccelNorm / SensorManager.GRAVITY_EARTH).toDouble()
         // Round to 2 decimals for display without the redundant String round-trip.
         _gForce.value = kotlin.math.round(gValue * 100.0) / 100.0
+
+        handleSentryImpact(gValue)
 
         // Count hard-brake spikes for the adaptive risk level (no incident logging — telemetry only)
         if (gValue >= 1.5 && _isRecording.value) {
@@ -851,6 +1022,19 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         if (_isSoundEnabled.value) {
             textToSpeech?.speak(phrase, TextToSpeech.QUEUE_FLUSH, null, null)
         }
+    }
+
+    private fun sha256Of(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buf = ByteArray(8192)
+            while (true) {
+                val n = input.read(buf)
+                if (n <= 0) break
+                digest.update(buf, 0, n)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     fun exportEvidenceZip(context: Context, incidentsToExport: List<IncidentRecord>, onResult: (String?) -> Unit) {
@@ -891,119 +1075,42 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
                     reportBuilder.append("Errant Driving Violations Registered: ${incident.recklessBehaviorObserved}\n")
                     reportBuilder.append("Plaintiff Custody Narrative: ${incident.extraNotes}\n")
                     reportBuilder.append("Chain-of-Custody Folder ID: ${incident.sessionFrameFolder}\n")
+
+                    // Bundle REAL media only. Earlier builds fabricated ASCII-art "camera
+                    // frames", a silent placeholder WAV, and a hashCode() labeled as an MD5
+                    // checksum — content that would destroy the bundle's credibility (and
+                    // the user's) under any scrutiny. Each real file now gets a genuine
+                    // SHA-256 digest recorded in the report so recipients can verify the
+                    // files were not modified after export.
+                    val mediaDir = File(context.filesDir, "evidence_media")
+                    val candidates = listOf(
+                        Triple(File(mediaDir, "incident_${incident.id}_snap.jpg"), "media/incident_${incident.id}_snap.jpg", "snapshot"),
+                        Triple(File(mediaDir, "incident_${incident.id}_video.mp4"), "media/incident_${incident.id}_video.mp4", "video clip"),
+                        Triple(File(mediaDir, "trip_${incident.sessionFrameFolder}_audio.m4a"), "media/incident_${incident.id}_audio_witness.m4a", "session audio")
+                    )
+                    candidates.forEach { (srcFile, entryName, label) ->
+                        if (srcFile.exists()) {
+                            try {
+                                zipOut.putNextEntry(java.util.zip.ZipEntry(entryName))
+                                srcFile.inputStream().use { input -> input.copyTo(zipOut) }
+                                zipOut.closeEntry()
+                                reportBuilder.append("SHA-256 of $entryName ($label, ${srcFile.length()} bytes): ${sha256Of(srcFile)}\n")
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        } else {
+                            reportBuilder.append("Note: no $label was captured for this incident.\n")
+                        }
+                    }
                     reportBuilder.append("-----------------------------------------------------\n\n")
-
-                    // Generate dummy camera frames using ASCII art with overlay stamp
-                     val frameContent = """
-                         ======================================================================
-                         GOOD DRIVERS DEFENDER - DUAL-CAM EMBEDDED TELEMETRY TIMESTAMP OVERLAY
-                         ======================================================================
-                         TIMESTAMP STAMP: [ $dateFormatted ]
-                         CUSTODY KEY: [ ${incident.sessionFrameFolder} ]
-                         GEO LOCATION: [ LAT ${incident.latitude} / LON ${incident.longitude} ]
-                         VELOCITY DATA: [ SPEED ${incident.speedMph} MPH / ZONE LIMIT ${incident.speedLimitMph} MPH ]
-                         ACCELERATING FORCE: [ PEAK ACCEL ${incident.maxGForce} Gs ]
-                         INTEGRITY LOCK: SECURED [MD5_CSUM: ${incident.sessionFrameFolder.hashCode()}]
-                         
-                         [ FRONT HD CAMERA CAPTURE ]
-                         --------------------------------------------------
-                         |                         |                      |
-                         |        [RECKLESS]       |     [ROAD LANE]      |
-                         |                         |                      |
-                         |                         |                      |
-                         --------------------------------------------------
-                         
-                         [ REAR WIDE RECON CAPTURE ]
-                         --------------------------------------------------
-                         |                         |                      |
-                         |       [TAILGATING]      |     [PLATE REVEAL]   |
-                         |       PLATE: ${incident.defendantPlate}         |
-                         |                         |                      |
-                         |                         |                      |
-                         --------------------------------------------------
-                     """.trimIndent()
-                     
-                      zipOut.putNextEntry(java.util.zip.ZipEntry("media/incident_${incident.id}_viewfinder_stamp.txt"))
-                      zipOut.write(frameContent.toByteArray())
-                      zipOut.closeEntry()
-
-                      val mediaDir = File(context.filesDir, "evidence_media")
-
-                      // Bundle real snapshot photo if it was successfully captured on device
-                      val snapFile = File(mediaDir, "incident_${incident.id}_snap.jpg")
-                      if (snapFile.exists()) {
-                          try {
-                              zipOut.putNextEntry(java.util.zip.ZipEntry("media/incident_${incident.id}_snap.jpg"))
-                              snapFile.inputStream().use { input ->
-                                  input.copyTo(zipOut)
-                              }
-                              zipOut.closeEntry()
-                          } catch (e: Exception) {
-                              e.printStackTrace()
-                          }
-                      }
-
-                      // Bundle real video recording if it was successfully captured on device
-                      val videoFile = File(mediaDir, "incident_${incident.id}_video.mp4")
-                      if (videoFile.exists()) {
-                          try {
-                              zipOut.putNextEntry(java.util.zip.ZipEntry("media/incident_${incident.id}_video.mp4"))
-                              videoFile.inputStream().use { input ->
-                                  input.copyTo(zipOut)
-                              }
-                              zipOut.closeEntry()
-                          } catch (e: Exception) {
-                              e.printStackTrace()
-                          }
-                      }
-
-                      // Bundle real background audio recording if it exists, otherwise write fallback wav
-                      val audioFile = File(mediaDir, "trip_${incident.sessionFrameFolder}_audio.m4a")
-                      if (audioFile.exists()) {
-                          try {
-                              zipOut.putNextEntry(java.util.zip.ZipEntry("media/incident_${incident.id}_audio_witness.m4a"))
-                              audioFile.inputStream().use { input ->
-                                  input.copyTo(zipOut)
-                              }
-                              zipOut.closeEntry()
-                          } catch (e: Exception) {
-                              e.printStackTrace()
-                          }
-                      } else {
-                          val dummyWavHeaders = ByteArray(44).apply {
-                              this[0] = 'R'.toByte()
-                              this[1] = 'I'.toByte()
-                              this[2] = 'F'.toByte()
-                              this[3] = 'F'.toByte()
-                              this[4] = 36
-                              this[8] = 'W'.toByte()
-                              this[9] = 'A'.toByte()
-                              this[10] = 'V'.toByte()
-                              this[11] = 'E'.toByte()
-                              this[12] = 'f'.toByte()
-                              this[13] = 'm'.toByte()
-                              this[14] = 't'.toByte()
-                              this[15] = ' '.toByte()
-                              this[16] = 16
-                              this[20] = 1
-                              this[22] = 1
-                              this[24] = (8000 and 0xff).toByte()
-                              this[25] = ((8000 shr 8) and 0xff).toByte()
-                              this[28] = (16000 and 0xff).toByte()
-                              this[29] = ((16000 shr 8) and 0xff).toByte()
-                              this[32] = 2
-                              this[34] = 16
-                              this[36] = 'd'.toByte()
-                              this[37] = 'a'.toByte()
-                              this[38] = 't'.toByte()
-                              this[39] = 'a'.toByte()
-                              this[40] = 0
-                          }
-                          zipOut.putNextEntry(java.util.zip.ZipEntry("media/incident_${incident.id}_audio_witness.wav"))
-                          zipOut.write(dummyWavHeaders)
-                          zipOut.closeEntry()
-                      }
                 }
+
+                reportBuilder.append(
+                    "INTEGRITY NOTE: The SHA-256 digests above were computed on-device at export\n" +
+                    "time. Recompute them with any standard SHA-256 tool to verify that the files\n" +
+                    "in this bundle have not been modified since export. This bundle is a plain\n" +
+                    "(unencrypted) ZIP of user-recorded logs; it makes no claim of certification.\n\n"
+                )
 
                 zipOut.putNextEntry(java.util.zip.ZipEntry("evidence_report.txt"))
                 zipOut.write(reportBuilder.toString().toByteArray())
@@ -1060,6 +1167,9 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
                         }
                     }
                     if (prunedCount > 0) {
+                        // Keep the gallery in sync — otherwise deleted files linger as
+                        // stale entries that open a broken player when tapped.
+                        refreshSavedVideos()
                         withContext(Dispatchers.Main) {
                             speakText("Storage limit reached. Pruned $prunedCount oldest recording files.")
                         }
@@ -1227,38 +1337,6 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun openEvidenceFolderInSystem(context: Context) {
-        val dir = File(context.filesDir, "evidence_media")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        try {
-            val authority = "${context.packageName}.fileprovider"
-            val uri = androidx.core.content.FileProvider.getUriForFile(context, authority, dir)
-            
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "resource/folder")
-                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-            speakText("Opening evidence folder.")
-        } catch (e: Exception) {
-            try {
-                val intent = android.content.Intent(android.content.Intent.ACTION_GET_CONTENT).apply {
-                    setDataAndType(androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", dir), "*/*")
-                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    addCategory(android.content.Intent.CATEGORY_OPENABLE)
-                }
-                context.startActivity(intent)
-                speakText("Opening file selector.")
-            } catch (ex: Exception) {
-                ex.printStackTrace()
-                speakText("System folder access restricted. Use direct sharing below.")
-            }
-        }
-    }
-
     private fun saveFileToPublicDownloads(
         context: Context,
         sourceFile: File,
@@ -1306,35 +1384,33 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // The single-file save family runs the MediaStore stream copy on Dispatchers.IO —
+    // these are invoked straight from locker onClicks, and copying a multi-MB clip on
+    // the main thread meant dropped frames or an ANR (the ZIP path always did this
+    // correctly; these three previously didn't).
     fun downloadSingleSnapshot(context: Context, incidentId: Long) {
-        val dir = File(context.filesDir, "evidence_media")
-        val snapFile = File(dir, "incident_${incidentId}_snap.jpg")
-        if (snapFile.exists()) {
-            val displayName = "incident_${incidentId}_snap_${System.currentTimeMillis()}.jpg"
-            val success = try { saveFileToPublicDownloads(context, snapFile, displayName, "image/jpeg") } catch (e: Exception) { false }
-            if (success) {
-                speakText("Snapshot saved to public Downloads.")
-            } else {
-                speakText("Failed to download snapshot.")
-            }
-        } else {
-            speakText("No snapshot photo found for this incident.")
+        viewModelScope.launch(Dispatchers.IO) {
+            val dir = File(context.filesDir, "evidence_media")
+            val snapFile = File(dir, "incident_${incidentId}_snap.jpg")
+            val message = if (snapFile.exists()) {
+                val displayName = "incident_${incidentId}_snap_${System.currentTimeMillis()}.jpg"
+                val success = try { saveFileToPublicDownloads(context, snapFile, displayName, "image/jpeg") } catch (e: Exception) { false }
+                if (success) "Snapshot saved to public Downloads." else "Failed to download snapshot."
+            } else "No snapshot photo found for this incident."
+            withContext(Dispatchers.Main) { speakText(message) }
         }
     }
 
     fun downloadSingleAudio(context: Context, sessionFolder: String) {
-        val dir = File(context.filesDir, "evidence_media")
-        val audioFile = File(dir, "trip_${sessionFolder}_audio.m4a")
-        if (audioFile.exists()) {
-            val displayName = "trip_${sessionFolder}_audio_${System.currentTimeMillis()}.m4a"
-            val success = saveFileToPublicDownloads(context, audioFile, displayName, "audio/m4a")
-            if (success) {
-                speakText("Witness audio saved to public Downloads.")
-            } else {
-                speakText("Failed to download audio.")
-            }
-        } else {
-            speakText("No audio witness found for this session.")
+        viewModelScope.launch(Dispatchers.IO) {
+            val dir = File(context.filesDir, "evidence_media")
+            val audioFile = File(dir, "trip_${sessionFolder}_audio.m4a")
+            val message = if (audioFile.exists()) {
+                val displayName = "trip_${sessionFolder}_audio_${System.currentTimeMillis()}.m4a"
+                val success = try { saveFileToPublicDownloads(context, audioFile, displayName, "audio/m4a") } catch (e: Exception) { false }
+                if (success) "Witness audio saved to public Downloads." else "Failed to download audio."
+            } else "No audio witness found for this session."
+            withContext(Dispatchers.Main) { speakText(message) }
         }
     }
 
@@ -1375,15 +1451,15 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun downloadSingleVideo(context: Context, incidentId: Long) {
-        val dir = File(context.filesDir, "evidence_media")
-        val videoFile = File(dir, "incident_${incidentId}_video.mp4")
-        if (videoFile.exists()) {
-            val displayName = "incident_${incidentId}_video_${System.currentTimeMillis()}.mp4"
-            val success = saveFileToPublicDownloads(context, videoFile, displayName, "video/mp4")
-            if (success) speakText("Video clip saved to public Downloads.")
-            else speakText("Failed to download video clip.")
-        } else {
-            speakText("No video clip found for this incident.")
+        viewModelScope.launch(Dispatchers.IO) {
+            val dir = File(context.filesDir, "evidence_media")
+            val videoFile = File(dir, "incident_${incidentId}_video.mp4")
+            val message = if (videoFile.exists()) {
+                val displayName = "incident_${incidentId}_video_${System.currentTimeMillis()}.mp4"
+                val success = try { saveFileToPublicDownloads(context, videoFile, displayName, "video/mp4") } catch (e: Exception) { false }
+                if (success) "Video clip saved to public Downloads." else "Failed to download video clip."
+            } else "No video clip found for this incident."
+            withContext(Dispatchers.Main) { speakText(message) }
         }
     }
 
@@ -1448,6 +1524,15 @@ class RecorderViewModel(application: Application) : AndroidViewModel(application
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         idleHandler.removeCallbacks(idleTimeoutRunnable)
+        // All capture lives in this ViewModel, so once it's cleared NOTHING is being
+        // recorded — the foreground service must not keep telling the user otherwise
+        // (a task-swipe used to leave a permanent "Recording active" notification
+        // over a dead pipeline, with its wake lock still held).
+        try {
+            com.example.DefenderService.stopService(getApplication())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
 
