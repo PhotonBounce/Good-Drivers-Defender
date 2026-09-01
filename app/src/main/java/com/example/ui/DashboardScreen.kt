@@ -1912,12 +1912,15 @@ fun DashboardScreen(
         if (showLastRecordingDialog) {
             // Loaded off the main thread — getLastRecordingInfo() walks the evidence dir
             // (listFiles + stat), which previously ran synchronously during composition.
-            var lastInfo by remember { mutableStateOf<com.example.viewmodel.LastRecordingInfo?>(null) }
+            var lastInfoState by remember { mutableStateOf<com.example.viewmodel.LastRecordingInfo?>(null) }
             LaunchedEffect(showLastRecordingDialog) {
-                lastInfo = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                lastInfoState = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     viewModel.getLastRecordingInfo()
                 }
             }
+            // Local snapshot: a delegated property can't smart-cast to non-null at the
+            // dozen use sites below; an immutable local can.
+            val lastInfo = lastInfoState
             val matchingIncidents = remember(lastInfo, incidents) {
                 if (lastInfo != null) {
                     incidents.filter { it.sessionFrameFolder == lastInfo.tripId }
