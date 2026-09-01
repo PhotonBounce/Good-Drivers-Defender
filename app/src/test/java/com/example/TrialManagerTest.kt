@@ -57,6 +57,15 @@ class TrialManagerTest {
     }
 
     @Test
+    fun `clock rollback cannot revive an expired trial`() {
+        val t0 = 1_000_000L
+        trial.ensureStarted(t0)
+        assertFalse(trial.isInTrial(t0 + 8 * day))  // expired; records the high-water mark
+        assertFalse(trial.isInTrial(t0 + 1 * day))  // clock rolled back — still expired
+        assertEquals(0, trial.daysRemaining(t0 + 1 * day))
+    }
+
+    @Test
     fun `days remaining counts down and floors at zero`() {
         val t0 = 1_000_000L
         trial.ensureStarted(t0)
