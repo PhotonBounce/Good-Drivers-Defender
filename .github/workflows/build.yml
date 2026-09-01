@@ -35,6 +35,19 @@ jobs:
       - name: Gradle permissions
         run: chmod +x gradlew
 
+      # ── Unit tests FIRST — fail fast, and never upload installable artifacts
+      #    from a run whose tests are broken ─────────────────────────────────
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: app/build/reports/tests/
+          retention-days: 14
+
       # ── Debug APK (no signing required) ──────────────────────────────────
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
@@ -56,14 +69,19 @@ jobs:
         run: echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
 
       - name: Write key.properties
-        if: ${{ env.STORE_PASSWORD != '' }}
+        # Gated on BOTH secrets: a password without a keystore wrote a key.properties
+        # pointing at a missing .jks and failed validateSigningRelease confusingly.
+        if: ${{ env.STORE_PASSWORD != '' && env.KEYSTORE_BASE64 != '' }}
         run: |
-          cat > key.properties <<EOF
-          storeFile=../my-upload-key.jks
-          storePassword=${STORE_PASSWORD}
-          keyAlias=${KEY_ALIAS}
-          keyPassword=${KEY_PASSWORD}
-          EOF
+          # printf (not an unquoted heredoc): passwords containing $ or backticks
+          # must land in the file verbatim, and a missing alias falls back to
+          # "upload" instead of writing an empty (fallback-defeating) value.
+          {
+            printf 'storeFile=../my-upload-key.jks\n'
+            printf 'storePassword=%s\n' "$STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "${KEY_ALIAS:-upload}"
+            printf 'keyPassword=%s\n' "${KEY_PASSWORD:-$STORE_PASSWORD}"
+          } > key.properties
 
       - name: Build release bundle (R8)
         run: ./gradlew bundleRelease --no-daemon
@@ -82,18 +100,6 @@ jobs:
           name: release-aab
           path: app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
-
-      # ── Unit tests ────────────────────────────────────────────────────────
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
-
-      - name: Upload test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-report
-          path: app/build/reports/tests/
-          retention-days: 14
 
       # ── QA screenshot generation ──────────────────────────────────────────
       - name: Set up Python

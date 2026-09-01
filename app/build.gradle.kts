@@ -6,10 +6,6 @@ plugins {
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
-  alias(libs.plugins.secrets)
-// Play Publisher plugin removed (temporarily) // plugin block commented out
-  // Play Publisher plugin for Google Play automation
-// id("com.github.triplet.play") version "3.10.0" // moved to apply later
 }
 
 // apply(from = "publish.gradle.kts")  // removed: file not present
@@ -78,9 +74,6 @@ android {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
   }
-  kotlinOptions {
-    jvmTarget = "17"
-  }
   buildFeatures {
     compose = true
     buildConfig = true
@@ -88,20 +81,17 @@ android {
   testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
-// Play Publisher configuration removed (temporarily) // play block disabled
-
-// Configure the Secrets Gradle Plugin to use .env and .env.example files
-// to match the convention used in Web projects.
-secrets {
-  propertiesFileName = ".env"
-  defaultPropertiesFileName = ".env.example"
+// Replaces the deprecated android.kotlinOptions {} block (removal slated for AGP 9 / Kotlin 2.3)
+kotlin {
+  compilerOptions {
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+  }
 }
 
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
   implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.camera.camera2)
@@ -124,18 +114,16 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   // implementation(libs.coil.compose)
-  implementation(libs.converter.moshi)
-  // implementation(libs.firebase.ai)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
-  implementation(libs.logging.interceptor)
-  implementation(libs.moshi.kotlin)
-  implementation(libs.okhttp)
   implementation(libs.play.services.location)
   implementation("com.android.billingclient:billing-ktx:9.1.0")
-  implementation(libs.retrofit)
-  implementation("com.google.guava:guava:31.1-android")
-  implementation("com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava")
+  // NOTE: the Retrofit/OkHttp/Moshi/Firebase/Guava stack was removed — a repo-wide
+  // audit found zero usages (the app has no network code by design), and the
+  // accompanying proguard keep rules were pinning the unused libraries into every
+  // release build. CameraX's ListenableFuture comes transitively (listenablefuture:1.0);
+  // if Guava is ever re-added, remember it needs the 9999.0-empty listenablefuture
+  // exclusion trick again.
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
@@ -153,7 +141,6 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
-  "ksp"(libs.moshi.kotlin.codegen)
 }
 
 tasks.register<Zip>("zipApk") {
