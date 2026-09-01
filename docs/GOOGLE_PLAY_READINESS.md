@@ -30,7 +30,8 @@ _Updated for v2.0 (versionCode 4). Last pass: 2026-06-16._
   CI will then produce a signed `release-aab` artifact automatically on every push.
   Strongly recommended: enroll in **Play App Signing** (Google manages the app signing key; you keep the upload key).
 - [ ] **[YOU] Host the privacy policy.** The policy template is at `web/privacy.html`.
-  Options: enable GitHub Pages on this repo (`Settings → Pages → Deploy from /web`), use Notion, or
+  Options: enable GitHub Pages (Settings → Pages → Source: **GitHub Actions**, then run the
+  existing `pages.yml` workflow — needs a public repo or a paid plan for private), use Notion, or
   your own site. Fill in your name/email at the top, then paste the live URL into Play Console.
 - [ ] **[YOU] Build the release AAB** (two ways):
   - **Via CI (recommended):** add signing secrets above → GitHub Actions builds `release-aab` artifact → download it.
@@ -113,12 +114,12 @@ Play review friction.
 
 ### [DONE in this branch]
 - [x] `versionCode` = 4, `versionName` = "2.0"
-- [x] `targetSdk` = 35 (Play Store requirement as of Aug 2025)
+- [x] `targetSdk` = 36 (Android 16 — required for updates from Aug 30, 2026; was 35)
 - [x] `ACCESS_BACKGROUND_LOCATION` removed (avoids heavy review)
 - [x] Foreground service types declared correctly (`location|microphone`)
 - [x] `startForeground()` crash guard on Android 14+ (H1)
 - [x] `POST_NOTIFICATIONS` requested at runtime on Android 13+ (H2)
-- [x] WakeLock capped at 1 hour (H3)
+- [x] WakeLock: 1-hour safety window, auto-renewed every 30 min while recording (H3)
 - [x] Permission onboarding copy is honest (C3)
 - [x] Branding unified to "Good Drivers Defender" everywhere
 - [x] GitHub Actions CI workflow builds debug APK + release AAB automatically
@@ -135,9 +136,9 @@ Play review friction.
   minSdk-24 app with no desugaring → crashed on Android 7.0/7.1. Now `SimpleDateFormat`.
 - [x] **SOS / collision safety** — no longer share a (0,0) "Null Island" map link
   before a GPS fix; they tell the contact GPS is unavailable instead.
-- [x] **FGS notification** honestly discloses active GPS/camera/mic recording.
-- [x] **`READ_EXTERNAL_STORAGE`** capped at `maxSdkVersion=32` (permission hygiene).
-- [x] **Banner ads** hide reactively the instant a user upgrades to Pro.
+- [x] **FGS notification** honestly discloses active GPS/mic recording (camera runs only in the app UI).
+- [x] **`READ_EXTERNAL_STORAGE`** removed entirely (no code path reads shared storage); `WRITE…` (≤28) now requested at runtime for legacy exports.
+- [x] ~~Banner ads hide reactively on upgrade~~ (historical — AdMob was later removed entirely; the app has no ads)
 - [x] **Play icon** opaque (was RGBA w/ transparent corners → Play reject); lock
   glyph in achievements screenshot fixed (drawn padlock, not broken emoji).
 - [x] **Web microsite** — real support email + Play Store links, small-phone

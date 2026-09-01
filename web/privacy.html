@@ -54,7 +54,7 @@
 
   <h2>6. Permissions explained</h2>
   <ul>
-    <li><strong>Location (ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION)</strong> — required to log GPS coordinates and speed at each incident. Active only while the foreground service is running.</li>
+    <li><strong>Location (ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION)</strong> — required to log GPS coordinates and speed. Used while the app is open (a relaxed, low-rate mode when idle; high-rate precise tracking only during an active recording session). Street and county names are resolved with the device's geocoding service (provided by Google on most devices), which processes coordinates to return an address; lookups are throttled and no other location data leaves your device.</li>
     <li><strong>Camera (CAMERA)</strong> — required to record dashcam video and take evidence photos.</li>
     <li><strong>Microphone (RECORD_AUDIO)</strong> — required to record ambient audio as part of the evidence session.</li>
     <li><strong>Notifications (POST_NOTIFICATIONS)</strong> — required on Android 13+ to show the ongoing notification that indicates active background recording. You will always know when the app is recording.</li>

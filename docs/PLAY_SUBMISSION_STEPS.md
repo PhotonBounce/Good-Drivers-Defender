@@ -117,7 +117,8 @@ Notes:
 The policy file is in the repo at **`web/privacy.html`**. Two easy options:
 - **Your host:** upload `web/privacy.html` to your site so it’s at
   `https://photon-bounce.com/privacy.html` (the store copy already references this URL).
-- **GitHub Pages (free):** ask me and I’ll add a Pages workflow that publishes it to a `github.io` URL.
+- **GitHub Pages:** a deploy workflow already exists (`.github/workflows/pages.yml`, manual-trigger).
+  Enable Pages with Source: **GitHub Actions** first — private repos need a paid GitHub plan (or make the repo public).
 
 ### 3b. Create the app
 **Play Console → All apps → Create app** → name **“Good Drivers Defender”**, default language,
